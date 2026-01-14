@@ -11,6 +11,7 @@ body {
     text-align: center;
     overflow-x: hidden;
     user-select: none; /* Чтобы текст не выделялся при кликах */
+    -webkit-tap-highlight-color: transparent;
 }
 
 h1, h2 {
@@ -208,6 +209,7 @@ p {
     border-radius: 10px;
     font-weight: bold;
     font-size: 18px;
+    will-change: transform;
 }
 
 #doodle-container {
@@ -228,6 +230,9 @@ p {
 
     overflow: hidden;
     touch-action: none;
+
+    /* PERF: ограничиваем область перерисовки браузера только этим блоком */
+    contain: layout paint;
 }
 
 #doodle-canvas {
@@ -478,14 +483,6 @@ p {
     background-color: #2962FF;
 }
 
-/* 256: ПРИБОР - ЗОЛОТОЙ МЕТАЛЛИК */
-.tile-256 {
-    background-image: url('assets/device.png');
-    background-color: #FFD700;
-    border: 2px solid #FFF;
-    box-shadow: 0 0 20px #FFD700, inset 0 0 10px white; /* Свечение наружу и внутрь */
-    z-index: 100;
-}
 /* Финальный прибор - золотое свечение */
 .tile-256 {
     background-image: url('assets/device.png');
@@ -591,4 +588,21 @@ hr {
     border: 0;
     border-top: 1px solid #bdc3c7;
     margin: 10px 0;
+}
+/* Анимация контейнера с вопросами */
+#quiz-container {
+    /* Чтобы блок не схлопывался, если вопрос короткий */
+    min-height: 300px;
+
+    /* Начальное состояние */
+    opacity: 1;
+
+    /* ОЧЕНЬ плавный переход только прозрачности */
+    transition: opacity 0.5s ease-in-out;
+}
+
+/* Класс для скрытого состояния */
+.quiz-hidden {
+    opacity: 0;
+    pointer-events: none; /* Блокируем клики, пока невидимо */
 }

@@ -258,11 +258,7 @@ p {
     pointer-events: none;
 }
 
-#doodle-controls.controls-hint .doodle-control {
-    animation: doodlePulse 1.1s ease-in-out infinite;
-}
-
-@keyframes doodlePulse {
+#doodle-controls.controls-hint @keyframes doodlePulse {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.08); }
 }
@@ -676,4 +672,3 @@ hr {
     opacity: 0;
     pointer-events: none; /* Блокируем клики, пока невидимо */
 }
-

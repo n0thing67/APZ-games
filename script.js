@@ -144,11 +144,19 @@ const imgPart = new Image(); imgPart.src = 'assets/part.png';
 const __doodleImgs = [imgHero, imgPlatform, imgSpring, imgPropeller, imgJetpack, imgPart];
 __doodleImgs.forEach(img => {
     img._ready = (img.complete && img.naturalWidth !== 0);
-    // decode может ускорить первое появление, особенно на мобильных
-    if (img.decode) { img.decode().catch(() => {}); }
+    // decode может ускорить первое появление. Делам это в idle, чтобы не задерживать старт уровня
+    if (img.decode) {
+        const _doDecode = () => img.decode().catch(() => {});
+        if (typeof requestIdleCallback === 'function') requestIdleCallback(_doDecode, { timeout: 600 });
+        else setTimeout(_doDecode, 0);
+    }
     img.addEventListener('load', () => {
         img._ready = true;
-        if (img.decode) { img.decode().catch(() => {}); }
+        if (img.decode) {
+            const _doDecode = () => img.decode().catch(() => {});
+            if (typeof requestIdleCallback === 'function') requestIdleCallback(_doDecode, { timeout: 600 });
+            else setTimeout(_doDecode, 0);
+        }
     }, { once: true });
 });
 
@@ -653,7 +661,7 @@ function preload2048Assets() {
 }
 
 // Запускаем предзагрузку сразу (скрипт подключен внизу страницы, DOM уже есть)
-preload2048Assets();
+// preload2048Assets(); // перенесено в init2048() для ускорения старта
 
 const SIZE = 4;
 // Предвычисляем позиции для ускорения (чтобы не считать в цикле)
@@ -681,6 +689,13 @@ let game2048Active = false;
 const emptyCells = [];
 
 function init2048() {
+    // Ленивая предзагрузка ассетов 2048: не грузим при старте приложения, чтобы не тормозить другие уровни
+    if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(() => preload2048Assets(), { timeout: 800 });
+    } else {
+        setTimeout(() => preload2048Assets(), 0);
+    }
+
     preload2048Assets();
     score2048 = 0;
     game2048Active = true;

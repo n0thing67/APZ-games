@@ -76,8 +76,11 @@
 
         <div id="factory-gate-container">
             <h3>✨ ЗАВОД ЗАПУЩЕН! ✨</h3>
-            <img id="factory-gate-img" src="assets/gate.jpg" alt="Проходная">
-        </div>
+            <picture>
+                <source srcset="assets/gate.webp" type="image/webp">
+                <img id="factory-gate-img" src="assets/gate.jpg" alt="Проходная">
+            </picture>
+            </div>
 
         <button id="btn-next-3" class="btn hidden" onclick="startGame(3)">Далее →</button>
     </div>
@@ -155,4 +158,3 @@
     <script src="script.js"></script>
 </body>
 </html>
-

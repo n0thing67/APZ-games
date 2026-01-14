@@ -14,6 +14,13 @@ body {
     -webkit-tap-highlight-color: transparent;
 }
 
+/* PERF: blur/backdrop-filter очень дорогой на мобилках (особенно iOS).
+   Во время игры выключаем его, чтобы поднять FPS. */
+#doodle-container.game-running .doodle-control {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
 h1, h2 {
     margin-bottom: 10px;
 }

@@ -177,10 +177,28 @@ let doodleCanvasRef = null;
 let touchRAF = 0;
 let pendingTouchSide = 0; // -1 = left, +1 = right
 
+// Кнопки управления (кружочки снизу)
+let doodleBtnsBound = false;
+let doodleControlsEl = null;
+
+function setDoodleControlsState(state) {
+    if (!doodleControlsEl) doodleControlsEl = document.getElementById('doodle-controls');
+    if (!doodleControlsEl) return;
+    doodleControlsEl.classList.remove('controls-hidden', 'controls-hint');
+    if (state === 'hidden') {
+        doodleControlsEl.classList.add('controls-hidden');
+    } else if (state === 'hint') {
+        doodleControlsEl.classList.add('controls-hint');
+    }
+}
+
+
 function initJumper() {
     // На случай повторного входа на уровень — останавливаем прошлый цикл
     gameActive = false;
     if (doodleGameLoop) cancelAnimationFrame(doodleGameLoop);
+
+    doodleControlsEl = document.getElementById('doodle-controls');
 
     document.getElementById('doodle-container').style.display = 'block';
     const ui = document.getElementById('doodle-ui');
@@ -195,6 +213,15 @@ function initJumper() {
     document.getElementById('game-over-overlay').classList.remove('visible');
     document.getElementById('victory-overlay').classList.remove('visible');
     document.getElementById('doodle-start-msg').style.display = 'flex';
+
+    // Подсказка управления: стрелки пульсируют на стартовом экране
+    setDoodleControlsState('hint');
+
+    // Сбрасываем управление, чтобы не было "залипания" после прошлой сессии
+    keys.left = false;
+    keys.right = false;
+    pendingTouchSide = 0;
+    if (touchRAF) { cancelAnimationFrame(touchRAF); touchRAF = 0; }
 
     // === ИСПРАВЛЕНИЕ КАЧЕСТВА (HiDPI) ===
 
@@ -268,19 +295,75 @@ function setupControls(canvas) {
         keys.left = false;
         keys.right = false;
         pendingTouchSide = 0;
+        // ВАЖНО: если rAF уже запланирован, отменяем, иначе он может снова включить направление
+        if (touchRAF) { cancelAnimationFrame(touchRAF); touchRAF = 0; }
     };
 
     canvas.addEventListener('touchstart', onTouchStartMove, { passive: false });
     canvas.addEventListener('touchmove', onTouchStartMove, { passive: false });
     canvas.addEventListener('touchend', onTouchEnd, { passive: false });
+
+    // --- Кнопки-стрелки снизу (для детей интуитивнее) ---
+    if (!doodleBtnsBound) {
+        doodleBtnsBound = true;
+        const btnL = document.getElementById('doodle-btn-left');
+        const btnR = document.getElementById('doodle-btn-right');
+
+        const pressLeft = (e) => {
+            e.preventDefault();
+            keys.left = true;
+            keys.right = false;
+            pendingTouchSide = -1;
+            if (touchRAF) { cancelAnimationFrame(touchRAF); touchRAF = 0; }
+        };
+        const pressRight = (e) => {
+            e.preventDefault();
+            keys.left = false;
+            keys.right = true;
+            pendingTouchSide = 1;
+            if (touchRAF) { cancelAnimationFrame(touchRAF); touchRAF = 0; }
+        };
+        const releaseBoth = (e) => {
+            if (e) e.preventDefault();
+            keys.left = false;
+            keys.right = false;
+            pendingTouchSide = 0;
+            if (touchRAF) { cancelAnimationFrame(touchRAF); touchRAF = 0; }
+        };
+
+        // Touch
+        btnL.addEventListener('touchstart', pressLeft, { passive: false });
+        btnL.addEventListener('touchend', releaseBoth, { passive: false });
+        btnL.addEventListener('touchcancel', releaseBoth, { passive: false });
+        btnR.addEventListener('touchstart', pressRight, { passive: false });
+        btnR.addEventListener('touchend', releaseBoth, { passive: false });
+        btnR.addEventListener('touchcancel', releaseBoth, { passive: false });
+
+        // Mouse (на ПК тоже удобно)
+        btnL.addEventListener('mousedown', pressLeft);
+        btnL.addEventListener('mouseup', releaseBoth);
+        btnL.addEventListener('mouseleave', releaseBoth);
+        btnR.addEventListener('mousedown', pressRight);
+        btnR.addEventListener('mouseup', releaseBoth);
+        btnR.addEventListener('mouseleave', releaseBoth);
+    }
 }
 
 function startDoodleLoop() {
     document.getElementById('doodle-container').classList.add('game-running');
     document.getElementById('doodle-start-msg').style.display = 'none';
+    // Во время игры стрелки видны без подсказки
+    setDoodleControlsState('play');
     document.getElementById('game-over-overlay').classList.remove('visible');
     resetGame();
     gameActive = true;
+
+    // Сбрасываем управление при старте, чтобы не было "залипания"
+    keys.left = false;
+    keys.right = false;
+    pendingTouchSide = 0;
+    if (touchRAF) { cancelAnimationFrame(touchRAF); touchRAF = 0; }
+
     gameStartTime = Date.now();
     levelStartTime = Date.now();
     update();
@@ -487,11 +570,18 @@ function draw() {
     }
 }
 function drawBonus(img, x, y, w, h) { if (img.complete && img.naturalWidth !== 0) ctx.drawImage(img, x, y, w, h); else { ctx.fillStyle = 'red'; ctx.fillRect(x, y, w, h); } }
-function showGameOver() { gameActive = false; cancelAnimationFrame(doodleGameLoop); document.getElementById('game-over-overlay').classList.add('visible'); }
+function showGameOver() { gameActive = false; cancelAnimationFrame(doodleGameLoop);
+    setDoodleControlsState('hidden');
+    document.getElementById('game-over-overlay').classList.add('visible'); }
 
 function showVictoryLevel2() {
     gameActive = false;
     cancelAnimationFrame(doodleGameLoop);
+    setDoodleControlsState('hidden');
+
+    // Сбрасываем управление на всякий случай
+    keys.left = false; keys.right = false; pendingTouchSide = 0;
+    if (touchRAF) { cancelAnimationFrame(touchRAF); touchRAF = 0; }
     let timeSpent = (Date.now() - levelStartTime) / 1000;
     levelScores[2] = Math.max(100, Math.floor(1500 - timeSpent * 5));
     document.getElementById('victory-overlay').classList.add('visible');
@@ -503,18 +593,54 @@ function finishLevel2() {
     document.getElementById('doodle-ui').style.display = 'none';
     const gateContainer = document.getElementById('factory-gate-container');
     gateContainer.style.display = 'block';
+
+    // Плавно проявляем блок (CSS transition)
+    requestAnimationFrame(() => gateContainer.classList.add('gate-visible'));
+
+    // Затем включаем "свет" на картинке
     setTimeout(() => {
         gateContainer.classList.add('lights-on');
         setTimeout(() => {
             const btn = document.getElementById('btn-next-3');
             if(btn) { btn.classList.remove('hidden'); btn.onclick = () => startGame(3); }
         }, 1000);
-    }, 100);
+    }, 150);
 }
 
 // ==========================================
 // УРОВЕНЬ 3: 2048 (ОПТИМИЗИРОВАННАЯ ВЕРСИЯ)
 // ==========================================
+
+// PERF: предзагрузка и декодирование картинок плиток.
+// Основная причина "долго грузит картинки" на телефоне — декодирование изображений
+// в момент первого появления каждой плитки. Предзагружаем один раз заранее.
+let tileAssets2048Ready = false;
+const tileAssets2048 = {
+    2: 'assets/bolt.png',
+    4: 'assets/nut.png',
+    8: 'assets/gear.png',
+    16: 'assets/chip.png',
+    32: 'assets/board.png',
+    64: 'assets/case.png',
+    128: 'assets/sensor.png',
+    256: 'assets/device.png'
+};
+
+function preload2048Assets() {
+    if (tileAssets2048Ready) return;
+    tileAssets2048Ready = true;
+
+    // Загружаем/декодируем в фоне, без блокировки игры
+    Object.values(tileAssets2048).forEach((src) => {
+        const img = new Image();
+        img.src = src;
+        // decode() ускоряет момент первого рендера (где поддерживается)
+        if (img.decode) img.decode().catch(() => {});
+    });
+}
+
+// Запускаем предзагрузку сразу (скрипт подключен внизу страницы, DOM уже есть)
+preload2048Assets();
 
 const SIZE = 4;
 // Предвычисляем позиции для ускорения (чтобы не считать в цикле)
@@ -542,6 +668,7 @@ let game2048Active = false;
 const emptyCells = [];
 
 function init2048() {
+    preload2048Assets();
     score2048 = 0;
     game2048Active = true;
     scoreEl2048.textContent = '0';

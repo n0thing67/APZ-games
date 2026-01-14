@@ -221,7 +221,7 @@ function createPuzzleElements() {
         const correctRow = Math.floor(correctIndex / puzzleSize);
         const correctCol = correctIndex % puzzleSize;
 
-        div.style.backgroundImage = `url('${assetPath('board', 'jpg')}')`;
+        div.style.backgroundImage = `url('${assetPath('logo', 'jpg')}')`;
         div.style.backgroundSize = `${puzzleSize * 100}% ${puzzleSize * 100}%`;
 
         const x = (puzzleSize === 1) ? 0 : (correctCol / (puzzleSize - 1)) * 100;
@@ -361,7 +361,7 @@ function preloadPuzzleAssets() {
     // Для любого размера пазла используем одну картинку board.webp
     if (puzzleAssetsReady) return puzzleAssetsReady;
     const img = new Image();
-    img.src = assetPath('board', 'jpg');
+    img.src = assetPath('logo', 'jpg');
     puzzleAssetsReady = decodeImage(img).catch(() => {});
     return puzzleAssetsReady;
 }
@@ -1350,3 +1350,4 @@ function closeApp() {
 window.addEventListener('load', () => {
     renderLevelMenuStats();
 });
+

@@ -1,6 +1,22 @@
 let tg = window.Telegram.WebApp;
 tg.expand();
 
+// ===== ASSETS: ускоряем загрузку через WebP (с fallback) =====
+function supportsWebP() {
+    try {
+        const c = document.createElement('canvas');
+        // Если браузер не умеет WebP, вернёт PNG
+        return c.toDataURL('image/webp').indexOf('data:image/webp') === 0;
+    } catch (e) {
+        return false;
+    }
+}
+const USE_WEBP = supportsWebP();
+function assetPath(name, fallbackExt) {
+    return `assets/${name}.${USE_WEBP ? 'webp' : fallbackExt}`;
+}
+
+
 // Хранилище очков по уровням
 let levelScores = {
     1: 0,
@@ -54,7 +70,7 @@ function createPuzzleElements() {
         const div = document.createElement('div');
         div.className = 'puzzle-piece';
         div.id = `piece-${i}`;
-        div.style.backgroundImage = `url('assets/${i}.jpg')`;
+        div.style.backgroundImage = `url('${assetPath(String(i), 'jpg')}')`;
         div.onclick = () => handlePieceClick(i);
         board.appendChild(div);
     }
@@ -133,33 +149,12 @@ let canvasHeight = 480;
 // но значительно разгружает GPU/CPU. Логику и картинки не меняем.
 const MAX_DPR = 2;
 
-const imgHero = new Image(); imgHero.src = 'assets/hero.png';
-const imgPlatform = new Image(); imgPlatform.src = 'assets/platform.png';
-const imgSpring = new Image(); imgSpring.src = 'assets/spring.png';
-const imgPropeller = new Image(); imgPropeller.src = 'assets/propeller.png';
-const imgJetpack = new Image(); imgJetpack.src = 'assets/jetpack.png';
-const imgPart = new Image(); imgPart.src = 'assets/part.png';
-
-// Предзагрузка/декодирование изображений для снижения фризов на телефонах
-const __doodleImgs = [imgHero, imgPlatform, imgSpring, imgPropeller, imgJetpack, imgPart];
-__doodleImgs.forEach(img => {
-    img._ready = (img.complete && img.naturalWidth !== 0);
-    // decode может ускорить первое появление. Делам это в idle, чтобы не задерживать старт уровня
-    if (img.decode) {
-        const _doDecode = () => img.decode().catch(() => {});
-        if (typeof requestIdleCallback === 'function') requestIdleCallback(_doDecode, { timeout: 600 });
-        else setTimeout(_doDecode, 0);
-    }
-    img.addEventListener('load', () => {
-        img._ready = true;
-        if (img.decode) {
-            const _doDecode = () => img.decode().catch(() => {});
-            if (typeof requestIdleCallback === 'function') requestIdleCallback(_doDecode, { timeout: 600 });
-            else setTimeout(_doDecode, 0);
-        }
-    }, { once: true });
-});
-
+const imgHero = new Image(); imgHero.src = assetPath('hero', 'png');
+const imgPlatform = new Image(); imgPlatform.src = assetPath('platform', 'png');
+const imgSpring = new Image(); imgSpring.src = assetPath('spring', 'png');
+const imgPropeller = new Image(); imgPropeller.src = assetPath('propeller', 'png');
+const imgJetpack = new Image(); imgJetpack.src = assetPath('jetpack', 'png');
+const imgPart = new Image(); imgPart.src = assetPath('part', 'png');
 
 const TOTAL_ITEMS = 12;
 const GRAVITY = 0.25;
@@ -537,7 +532,7 @@ function draw() {
     // Платформы
     for (let i = 0; i < platforms.length; i++) {
         const p = platforms[i];
-        if (imgPlatform._ready) ctx.drawImage(imgPlatform, p.x, p.y, p.width, p.height);
+        if (imgPlatform.complete && imgPlatform.naturalWidth !== 0) ctx.drawImage(imgPlatform, p.x, p.y, p.width, p.height);
         else { ctx.fillStyle = '#27ae60'; ctx.fillRect(p.x, p.y, p.width, p.height); }
 
         if (p.bonus === 'spring') { const bx = p.x + (PLATFORM_WIDTH - SPRING_WIDTH) / 2; const by = p.y - SPRING_HEIGHT + 46; drawBonus(imgSpring, bx, by, SPRING_WIDTH, SPRING_HEIGHT); }
@@ -549,7 +544,7 @@ function draw() {
     for (let i = 0; i < items.length; i++) {
         const item = items[i];
         if (item.collected) continue;
-        if (imgPart._ready) ctx.drawImage(imgPart, item.x - 30, item.y - 30, 60, 60);
+        if (imgPart.complete && imgPart.naturalWidth !== 0) ctx.drawImage(imgPart, item.x - 30, item.y - 30, 60, 60);
         else { ctx.beginPath(); ctx.arc(item.x, item.y, 20, 0, Math.PI * 2); ctx.fillStyle = '#3498db'; ctx.fill(); }
     }
 
@@ -557,7 +552,7 @@ function draw() {
     // Мы добавляем +20 пикселей к Y, чтобы компенсировать зазор
     const visualOffset = 40;
 
-    if (imgHero._ready) {
+    if (imgHero.complete) {
          if (player.equipment === 'jetpack') {
             // Рисуем ОДИН большой джетпак по центру
             const jpWidth = 90;  // Ширина джетпака
@@ -590,7 +585,7 @@ function draw() {
         ctx.fillRect(player.x, player.y + visualOffset, player.width, player.height);
     }
 }
-function drawBonus(img, x, y, w, h) { if (img._ready) ctx.drawImage(img, x, y, w, h); else { ctx.fillStyle = 'red'; ctx.fillRect(x, y, w, h); } }
+function drawBonus(img, x, y, w, h) { if (img.complete && img.naturalWidth !== 0) ctx.drawImage(img, x, y, w, h); else { ctx.fillStyle = 'red'; ctx.fillRect(x, y, w, h); } }
 function showGameOver() { gameActive = false; cancelAnimationFrame(doodleGameLoop);
     setDoodleControlsState('hidden');
     document.getElementById('game-over-overlay').classList.add('visible'); }
@@ -637,14 +632,14 @@ function finishLevel2() {
 // в момент первого появления каждой плитки. Предзагружаем один раз заранее.
 let tileAssets2048Ready = false;
 const tileAssets2048 = {
-    2: 'assets/bolt.png',
-    4: 'assets/nut.png',
-    8: 'assets/gear.png',
-    16: 'assets/chip.png',
-    32: 'assets/board.png',
-    64: 'assets/case.png',
-    128: 'assets/sensor.png',
-    256: 'assets/device.png'
+    2: assetPath('bolt', 'png'),
+    4: assetPath('nut', 'png'),
+    8: assetPath('gear', 'png'),
+    16: assetPath('chip', 'png'),
+    32: assetPath('board', 'png'),
+    64: assetPath('case', 'png'),
+    128: assetPath('sensor', 'png'),
+    256: assetPath('device', 'png')
 };
 
 function preload2048Assets() {
@@ -661,7 +656,7 @@ function preload2048Assets() {
 }
 
 // Запускаем предзагрузку сразу (скрипт подключен внизу страницы, DOM уже есть)
-// preload2048Assets(); // перенесено в init2048() для ускорения старта
+preload2048Assets();
 
 const SIZE = 4;
 // Предвычисляем позиции для ускорения (чтобы не считать в цикле)
@@ -689,13 +684,6 @@ let game2048Active = false;
 const emptyCells = [];
 
 function init2048() {
-    // Ленивая предзагрузка ассетов 2048: не грузим при старте приложения, чтобы не тормозить другие уровни
-    if (typeof requestIdleCallback === 'function') {
-        requestIdleCallback(() => preload2048Assets(), { timeout: 800 });
-    } else {
-        setTimeout(() => preload2048Assets(), 0);
-    }
-
     preload2048Assets();
     score2048 = 0;
     game2048Active = true;

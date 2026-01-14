@@ -58,9 +58,19 @@ let selectedPieceNum = null;
 let puzzleSolved = false;
 
 function initPuzzle() {
-    puzzleState.sort(() => Math.random() - 0.5);
-    createPuzzleElements();
-    updatePuzzlePositions();
+    // Показываем быстрый отклик, а картинки заранее декодируем (особенно важно на телефонах)
+    const status = document.getElementById('puzzle-status');
+    if (status) { status.textContent = '⏳ Загружаю картинки…'; status.style.color = '#7f8c8d'; }
+
+    preloadPuzzleAssets().then(() => {
+        puzzleState = [1,2,3,4,5,6,7,8,9];
+        puzzleSolved = false;
+        selectedPieceNum = null;
+        puzzleState.sort(() => Math.random() - 0.5);
+        createPuzzleElements();
+        updatePuzzlePositions();
+        if (status) { status.textContent = ''; }
+    });
 }
 
 function createPuzzleElements() {
@@ -156,6 +166,48 @@ const imgPropeller = new Image(); imgPropeller.src = assetPath('propeller', 'png
 const imgJetpack = new Image(); imgJetpack.src = assetPath('jetpack', 'png');
 const imgPart = new Image(); imgPart.src = assetPath('part', 'png');
 
+// ===== PERF: предзагрузка/декодирование изображений (убирает фризы на первом рендере) =====
+function decodeImage(img) {
+    // decode() доступен в большинстве современных браузеров; если нет — ждём onload
+    if (img.decode) return img.decode().catch(() => {});
+    if (img.complete && img.naturalWidth) return Promise.resolve();
+    return new Promise((resolve) => {
+        img.addEventListener('load', () => resolve(), { once: true });
+        img.addEventListener('error', () => resolve(), { once: true });
+    });
+}
+
+let level2AssetsLoaded = false;
+let level2AssetsPromise = null;
+function preloadLevel2Assets() {
+    if (level2AssetsLoaded) return Promise.resolve();
+    if (level2AssetsPromise) return level2AssetsPromise;
+    level2AssetsPromise = Promise.all([
+        decodeImage(imgHero),
+        decodeImage(imgPlatform),
+        decodeImage(imgSpring),
+        decodeImage(imgPropeller),
+        decodeImage(imgJetpack),
+        decodeImage(imgPart),
+    ]).then(() => { level2AssetsLoaded = true; });
+    return level2AssetsPromise;
+}
+
+let puzzleAssetsReady = false;
+function preloadPuzzleAssets() {
+    if (puzzleAssetsReady) return Promise.resolve();
+    puzzleAssetsReady = true;
+    // 1..9 — кусочки пазла. Предзагрузка перед отрисовкой убирает «пустые клетки» и лаги.
+    const imgs = [];
+    for (let i = 1; i <= 9; i++) {
+        const im = new Image();
+        im.src = assetPath(String(i), 'jpg');
+        imgs.push(decodeImage(im));
+    }
+    return Promise.all(imgs).then(() => {});
+}
+
+
 const TOTAL_ITEMS = 12;
 const GRAVITY = 0.25;
 const JUMP_FORCE = -9;
@@ -230,6 +282,24 @@ function initJumper() {
     document.getElementById('victory-overlay').classList.remove('visible');
     document.getElementById('doodle-start-msg').style.display = 'flex';
 
+    // На мобильных декодирование/декодирование ассетов может лагать на первом кадре.
+    // Поэтому декодируем картинки ДО старта и только потом разрешаем начать.
+    const startMsg = document.getElementById('doodle-start-msg');
+    const pTag = startMsg ? startMsg.querySelector('p') : null;
+    if (startMsg) {
+        startMsg.style.pointerEvents = 'none';
+        startMsg.dataset.ready = '0';
+    }
+    if (pTag) pTag.textContent = '⏳ Загружаю…';
+    preloadLevel2Assets().finally(() => {
+        if (startMsg) {
+            startMsg.style.pointerEvents = 'auto';
+            startMsg.dataset.ready = '1';
+        }
+        if (pTag) pTag.textContent = 'Нажми, чтобы начать!';
+    });
+
+
     // Подсказка управления: стрелки пульсируют на стартовом экране
     setDoodleControlsState('hint');
 
@@ -266,7 +336,8 @@ function initJumper() {
 
     // Включаем сглаживание (или выключаем, если хочешь пиксель-арт)
     ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
+    // На мобилках 'high' иногда заметно режет FPS.
+    ctx.imageSmoothingQuality = (dpr > 1.5) ? 'low' : 'medium';
 
     scoreEl = document.getElementById('doodle-score');
     timerEl = document.getElementById('doodle-timer');
@@ -287,6 +358,17 @@ function setupControls(canvas) {
     // Touch: навешиваем обработчики один раз, чтобы не плодить слушатели при повторном запуске
     if (doodleControlsBound) return;
     doodleControlsBound = true;
+    // PERF: если вкладка скрыта — стопаем цикл (экономит батарею и CPU)
+    if (!setupControls._visBound) {
+        setupControls._visBound = true;
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                gameActive = false;
+                if (doodleGameLoop) cancelAnimationFrame(doodleGameLoop);
+            }
+        }, { passive: true });
+    }
+
 
     const onTouchStartMove = (e) => {
         e.preventDefault();
@@ -366,6 +448,12 @@ function setupControls(canvas) {
 }
 
 function startDoodleLoop() {
+    if (!level2AssetsLoaded) return; // ждём декодирования ассетов
+
+    // Если ассеты ещё декодируются — не стартуем (иначе будет фриз)
+    const startMsg = document.getElementById('doodle-start-msg');
+    if (startMsg && startMsg.dataset && startMsg.dataset.ready === '0') return;
+
     document.getElementById('doodle-container').classList.add('game-running');
     document.getElementById('doodle-start-msg').style.display = 'none';
     // Во время игры стрелки видны без подсказки

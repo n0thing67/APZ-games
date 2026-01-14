@@ -692,3 +692,36 @@ hr {
     opacity: 0;
     pointer-events: none; /* Блокируем клики, пока невидимо */
 }
+
+
+/* === Экран выбора уровня === */
+.muted { opacity: 0.8; font-size: 14px; }
+
+.level-list{
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    width: 100%;
+    max-width: 420px;
+    margin: 14px auto 0;
+}
+.level-card{
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 14px;
+    padding: 12px;
+    text-align: left;
+}
+.level-title{ font-weight: 700; margin-bottom: 6px; }
+.level-stats{ font-size: 14px; opacity: 0.9; margin-bottom: 10px; }
+
+.btn.btn-secondary{
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.18);
+}
+
+/* Пазл: позволяем разный размер сетки */
+.puzzle-piece{
+    background-image: url('assets/board.webp');
+}
+

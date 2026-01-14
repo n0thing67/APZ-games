@@ -17,85 +17,236 @@ function assetPath(name, fallbackExt) {
 }
 
 
-// Хранилище очков по уровням
-let levelScores = {
-    1: 0,
-    2: 0,
-    3: 0,
-    4: 0
+// ==========================================
+// УРОВНИ + СТАТИСТИКА (по каждому уровню отдельно)
+// ==========================================
+const LEVEL_DEFS = {
+    'puzzle-2x2': { title: 'Логотип 2×2', type: 'puzzle', puzzleSize: 2, stat: 'time' },
+    'puzzle-3x3': { title: 'Логотип 3×3', type: 'puzzle', puzzleSize: 3, stat: 'time' },
+    'puzzle-4x4': { title: 'Логотип 4×4', type: 'puzzle', puzzleSize: 4, stat: 'time' },
+    'jumper':      { title: 'Jumper',        type: 'jumper', stat: 'score' },
+    'factory-2048':{ title: 'Сборочный цех', type: '2048',   stat: 'score' },
+    'quiz':        { title: 'Квиз',          type: 'quiz',   stat: 'score' }
 };
 
+const STATS_KEY = 'apzQuestStatsV1';
+
+function loadStats() {
+    try {
+        const raw = localStorage.getItem(STATS_KEY);
+        return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+        return {};
+    }
+}
+function saveStats(s) {
+    try { localStorage.setItem(STATS_KEY, JSON.stringify(s)); } catch (e) {}
+}
+let stats = loadStats();
+
+function formatTime(ms) {
+    if (!ms && ms !== 0) return '—';
+    const sec = Math.round(ms / 1000);
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return m > 0 ? `${m}м ${s}с` : `${s}с`;
+}
+
+function renderLevelMenuStats() {
+    // Пазлы (время)
+    const p22 = document.getElementById('stat-puzzle-2x2');
+    const p33 = document.getElementById('stat-puzzle-3x3');
+    const p44 = document.getElementById('stat-puzzle-4x4');
+    if (p22) p22.textContent = formatTime(stats['puzzle-2x2']?.bestTimeMs);
+    if (p33) p33.textContent = formatTime(stats['puzzle-3x3']?.bestTimeMs);
+    if (p44) p44.textContent = formatTime(stats['puzzle-4x4']?.bestTimeMs);
+
+    // Скоринговые уровни
+    const j = document.getElementById('stat-jumper');
+    const g = document.getElementById('stat-2048');
+    const q = document.getElementById('stat-quiz');
+    if (j) j.textContent = (stats['jumper']?.bestScore ?? '—');
+    if (g) g.textContent = (stats['factory-2048']?.bestScore ?? '—');
+    if (q) q.textContent = (stats['quiz']?.bestScore ?? '—');
+}
+
+function resetAllStats() {
+    stats = {};
+    // Обновим старые "очки по уровням" (для финального экрана)
+    if (levelId.startsWith('puzzle-')) levelScores[1] = (typeof score === 'number') ? score : (levelScores[1] || 0);
+    if (levelId === 'jumper') levelScores[2] = (typeof score === 'number') ? score : (levelScores[2] || 0);
+    if (levelId === 'factory-2048') levelScores[3] = (typeof score === 'number') ? score : (levelScores[3] || 0);
+    if (levelId === 'quiz') levelScores[4] = (typeof score === 'number') ? score : (levelScores[4] || 0);
+
+    saveStats(stats);
+    renderLevelMenuStats();
+}
+
+function showScreen(screenId) {
+    document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+    const s = document.getElementById(screenId);
+    if (s) s.classList.add('active');
+}
+
+function showLevels() {
+    showScreen('screen-levels');
+    renderLevelMenuStats();
+}
+
+// Текущее прохождение
+let currentLevelId = null;
 let levelStartTime = 0; // Для засекания времени
 
+function startLevel(levelId) {
+    // защита от старых вызовов
+    if (typeof levelId === 'number') return startGame(levelId);
+
+    currentLevelId = levelId;
+    levelStartTime = Date.now();
+
+    // Plays++
+    stats[levelId] = stats[levelId] || { plays: 0, completions: 0 };
+    stats[levelId].plays = (stats[levelId].plays || 0) + 1;
+    saveStats(stats);
+
+    const def = LEVEL_DEFS[levelId];
+    if (!def) return showLevels();
+
+    if (def.type === 'puzzle') {
+        showScreen('screen-level1');
+        initPuzzle(def.puzzleSize);
+    } else if (def.type === 'jumper') {
+        showScreen('screen-level2');
+        initJumper();
+    } else if (def.type === '2048') {
+        showScreen('screen-level3');
+        init2048();
+    } else if (def.type === 'quiz') {
+        showScreen('screen-level4');
+        initQuiz();
+    }
+}
+
+function finishLevel({ score = null, timeMs = null } = {}) {
+    const levelId = currentLevelId;
+    if (!levelId) return;
+
+    stats[levelId] = stats[levelId] || { plays: 0, completions: 0 };
+    stats[levelId].completions = (stats[levelId].completions || 0) + 1;
+
+    if (typeof timeMs === 'number') {
+        const best = stats[levelId].bestTimeMs;
+        if (best == null || timeMs < best) stats[levelId].bestTimeMs = timeMs;
+        stats[levelId].lastTimeMs = timeMs;
+    }
+    if (typeof score === 'number') {
+        const best = stats[levelId].bestScore;
+        if (best == null || score > best) stats[levelId].bestScore = score;
+        stats[levelId].lastScore = score;
+    }
+    saveStats(stats);
+    renderLevelMenuStats();
+}
+
+
+
+// Совместимость со старым финальным экраном
+let levelScores = { 1: 0, 2: 0, 3: 0, 4: 0 };
 // ==========================================
 // НАВИГАЦИЯ
 // ==========================================
 function startGame(level) {
-    document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
-
-    levelStartTime = Date.now(); // Засекаем время старта уровня
-
-    if (level === 1) {
-        document.getElementById('screen-level1').classList.add('active');
-        initPuzzle();
-    } else if (level === 2) {
-        document.getElementById('screen-level2').classList.add('active');
-        initJumper();
-    } else if (level === 3) {
-        document.getElementById('screen-level3').classList.add('active');
-        init2048();
-    } else if (level === 4) {
-        document.getElementById('screen-level4').classList.add('active');
-        initQuiz();
-    }
+    // Совместимость со старой линейной навигацией (кнопки "Далее")
+    const map = { 1: 'puzzle-3x3', 2: 'jumper', 3: 'factory-2048', 4: 'quiz' };
+    const id = map[level] || 'puzzle-3x3';
+    startLevel(id);
 }
 
 // ==========================================
 // УРОВЕНЬ 1: ПАЗЛ (Логика)
 // ==========================================
-let puzzleState = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+let puzzleSize = 3;
+let puzzleState = [];
 let selectedPieceNum = null;
 let puzzleSolved = false;
+functifunction initPuzzle(size = 3) {
+    puzzleSize = size;
 
-function initPuzzle() {
-    // Показываем быстрый отклик, а картинки заранее декодируем (особенно важно на телефонах)
+    // Заголовок/подсказка
+    const h2 = document.querySelector('#screen-level1 h2');
+    if (h2) {
+        const label = (size === 2) ? '2×2' : (size === 3) ? '3×3' : '4×4';
+        h2.textContent = `🧩 Уровень: Логотип (${label})`;
+    }
+
+    // Быстрый отклик, а картинку заранее декодируем (особенно важно на телефонах)
     const status = document.getElementById('puzzle-status');
-    if (status) { status.textContent = '⏳ Загружаю картинки…'; status.style.color = '#7f8c8d'; }
+    if (status) { status.textContent = '⏳ Загружаю…'; status.style.color = '#7f8c8d'; }
 
     preloadPuzzleAssets().then(() => {
-        puzzleState = [1,2,3,4,5,6,7,8,9];
+        const total = puzzleSize * puzzleSize;
+        puzzleState = Array.from({ length: total }, (_, i) => i + 1);
         puzzleSolved = false;
         selectedPieceNum = null;
+
+        // Любая перестановка подходит (мы меняем местами любые 2 клетки)
         puzzleState.sort(() => Math.random() - 0.5);
+
         createPuzzleElements();
         updatePuzzlePositions();
+
         if (status) { status.textContent = ''; }
+        const nextBtn = document.getElementById('btn-next-2');
+        if (nextBtn) nextBtn.classList.add('hidden');
     });
 }
-
 function createPuzzleElements() {
     const board = document.getElementById('puzzle-board');
     board.innerHTML = '';
-    for (let i = 1; i <= 9; i++) {
+
+    const total = puzzleSize * puzzleSize;
+    const tilePercent = 100 / puzzleSize;
+
+    for (let i = 1; i <= total; i++) {
         const div = document.createElement('div');
         div.className = 'puzzle-piece';
         div.id = `piece-${i}`;
-        div.style.backgroundImage = `url('${assetPath(String(i), 'jpg')}')`;
+
+        // Размер клетки
+        div.style.width = `${tilePercent}%`;
+        div.style.height = `${tilePercent}%`;
+
+        // Одна картинка (board.webp), показываем нужный кусок
+        const correctIndex = i - 1;
+        const correctRow = Math.floor(correctIndex / puzzleSize);
+        const correctCol = correctIndex % puzzleSize;
+
+        div.style.backgroundImage = `url('${assetPath('board', 'jpg')}')`;
+        div.style.backgroundSize = `${puzzleSize * 100}% ${puzzleSize * 100}%`;
+
+        const x = (puzzleSize === 1) ? 0 : (correctCol / (puzzleSize - 1)) * 100;
+        const y = (puzzleSize === 1) ? 0 : (correctRow / (puzzleSize - 1)) * 100;
+        div.style.backgroundPosition = `${x}% ${y}%`;
+
         div.onclick = () => handlePieceClick(i);
         board.appendChild(div);
     }
 }
 
 function updatePuzzlePositions() {
+    const tilePercent = 100 / puzzleSize;
+
     puzzleState.forEach((pieceNum, index) => {
         const div = document.getElementById(`piece-${pieceNum}`);
-        const row = Math.floor(index / 3);
-        const col = index % 3;
-        div.style.top = `${row * 33.33}%`;
-        div.style.left = `${col * 33.33}%`;
+        if (!div) return;
+        const row = Math.floor(index / puzzleSize);
+        const col = index % puzzleSize;
+        div.style.top = `${row * tilePercent}%`;
+        div.style.left = `${col * tilePercent}%`;
         if (selectedPieceNum === pieceNum) div.classList.add('selected');
         else div.classList.remove('selected');
     });
+
     checkPuzzleWin();
 }
 
@@ -120,28 +271,40 @@ function handlePieceClick(clickedNum) {
 
 function checkPuzzleWin() {
     const isWin = puzzleState.every((val, index) => val === index + 1);
-    if (isWin) {
-        puzzleSolved = true;
-        const status = document.getElementById('puzzle-status');
+    if (!isWin) return;
+
+    puzzleSolved = true;
+    const status = document.getElementById('puzzle-status');
+    if (status) {
         status.textContent = "✅ Логотип собран!";
         status.style.color = "#2ecc71";
-        document.querySelectorAll('.puzzle-piece').forEach(el => {
-            el.style.border = "none";
-            el.style.borderRadius = "0";
-            el.style.width = "33.5%";
-            el.style.height = "33.5%";
-            el.style.cursor = "default";
-            el.classList.remove('selected');
-        });
-
-        // == ПОДСЧЕТ ОЧКОВ (УРОВЕНЬ 1) ==
-        let timeSpent = (Date.now() - levelStartTime) / 1000;
-        // Макс 1000, минус 5 очков за секунду. Минимум 100.
-        levelScores[1] = Math.max(100, Math.floor(1000 - timeSpent * 5));
-
-        document.getElementById('btn-next-2').classList.remove('hidden');
     }
+
+    const tilePercent = 100 / puzzleSize;
+    document.querySelectorAll('.puzzle-piece').forEach(el => {
+        el.style.border = "none";
+        el.style.borderRadius = "0";
+        el.style.width = `${tilePercent}%`;
+        el.style.height = `${tilePercent}%`;
+        el.style.cursor = "default";
+        el.classList.remove('selected');
+    });
+
+    const timeMs = Date.now() - levelStartTime;
+
+    // Небольшой "скор" тоже посчитаем (для красивого финала/Telegram), но статистика пазла — по времени
+    const base = (puzzleSize === 2) ? 600 : (puzzleSize === 3) ? 1000 : 1500;
+    const penalty = (puzzleSize === 2) ? 8 : (puzzleSize === 3) ? 6 : 5; // штраф за секунду
+    const score = Math.max(100, Math.floor(base - (timeMs / 1000) * penalty));
+
+    // Сохраняем статистику именно этого варианта пазла
+    finishLevel({ score, timeMs });
+
+    // Кнопка "Далее" (если идём по линейному сценарию)
+    const nextBtn = document.getElementById('btn-next-2');
+    if (nextBtn) nextBtn.classList.remove('hidden');
 }
+
 
 // ==========================================
 // УРОВЕНЬ 2: JUMP GAME
@@ -195,16 +358,12 @@ function preloadLevel2Assets() {
 
 let puzzleAssetsReady = false;
 function preloadPuzzleAssets() {
-    if (puzzleAssetsReady) return Promise.resolve();
-    puzzleAssetsReady = true;
-    // 1..9 — кусочки пазла. Предзагрузка перед отрисовкой убирает «пустые клетки» и лаги.
-    const imgs = [];
-    for (let i = 1; i <= 9; i++) {
-        const im = new Image();
-        im.src = assetPath(String(i), 'jpg');
-        imgs.push(decodeImage(im));
-    }
-    return Promise.all(imgs).then(() => {});
+    // Для любого размера пазла используем одну картинку board.webp
+    if (puzzleAssetsReady) return puzzleAssetsReady;
+    const img = new Image();
+    img.src = assetPath('board', 'jpg');
+    puzzleAssetsReady = decodeImage(img).catch(() => {});
+    return puzzleAssetsReady;
 }
 
 
@@ -681,15 +840,25 @@ function showGameOver() { gameActive = false; cancelAnimationFrame(doodleGameLoo
 function showVictoryLevel2() {
     gameActive = false;
     cancelAnimationFrame(doodleGameLoop);
-    setDoodleControlsState('hidden');
+    setDoodleControlsState(false);
 
-    // Сбрасываем управление на всякий случай
-    keys.left = false; keys.right = false; pendingTouchSide = 0;
+    // Сбрасываем управление
+    keys.left = false; keys.right = false;
+    pendingTouchMove = 0; pendingTouchSide = 0;
     if (touchRAF) { cancelAnimationFrame(touchRAF); touchRAF = 0; }
-    let timeSpent = (Date.now() - levelStartTime) / 1000;
-    levelScores[2] = Math.max(100, Math.floor(1500 - timeSpent * 5));
+
+    const timeMs = Date.now() - levelStartTime;
+
+    // "Счёт" уровня 2 — по времени (как было), но теперь сохраняем как bestScore
+    const score = Math.max(100, Math.floor(1500 - (timeMs / 1000) * 5));
+    levelScores[2] = score;
+    finishLevel({ score, timeMs });
+
     document.getElementById('victory-overlay').classList.add('visible');
-    setTimeout(() => { document.getElementById('victory-overlay').classList.remove('visible'); finishLevel2(); }, 2000);
+    setTimeout(() => {
+        document.getElementById('victory-overlay').classList.remove('visible');
+        finishLevel2();
+    }, 2000);
 }
 
 function finishLevel2() {
@@ -963,9 +1132,12 @@ function check2048Status() {
 function showVictory2048() {
     game2048Active = false;
 
-    // Подсчет очков
-    let timeSpent = (Date.now() - levelStartTime) / 1000;
-    levelScores[3] = Math.max(100, Math.floor(2000 - timeSpent * 2));
+    const timeMs = Date.now() - levelStartTime;
+
+    // Счёт 2048 — реальный игровой счёт
+    const score = score2048;
+    levelScores[3] = score;
+    finishLevel({ score, timeMs });
 
     overlay2048Victory.classList.add('visible');
     setTimeout(() => {
@@ -1138,6 +1310,10 @@ function showFinalScreen() {
     document.getElementById('screen-level4').classList.remove('active');
     document.getElementById('screen-final').classList.add('active');
 
+    // Сохраняем статистику квиза
+    const timeMs = Date.now() - levelStartTime;
+    finishLevel({ score: levelScores[4], timeMs });
+
     // Заполняем таблицу
     document.getElementById('res-l1').textContent = levelScores[1];
     document.getElementById('res-l2').textContent = levelScores[2];
@@ -1169,3 +1345,8 @@ function closeApp() {
     tg.sendData(JSON.stringify({score: totalScore}));
     tg.close();
 }
+
+// Инициализация меню уровней
+window.addEventListener('load', () => {
+    renderLevelMenuStats();
+});

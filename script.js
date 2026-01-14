@@ -125,6 +125,14 @@ let ctx;
 let canvasWidth = 320;
 let canvasHeight = 480;
 
+// ============================
+// PERF: общие оптимизации
+// ============================
+// На телефонах с devicePixelRatio=3 канвас становится слишком тяжёлым (слишком много пикселей),
+// что приводит к просадкам FPS. Ограничиваем DPR до 2 — визуально почти не заметно,
+// но значительно разгружает GPU/CPU. Логику и картинки не меняем.
+const MAX_DPR = 2;
+
 const imgHero = new Image(); imgHero.src = 'assets/hero.png';
 const imgPlatform = new Image(); imgPlatform.src = 'assets/platform.png';
 const imgSpring = new Image(); imgSpring.src = 'assets/spring.png';
@@ -161,7 +169,19 @@ let timerEl;
 let gameActive = false;
 let gameStartTime = 0;
 
+// Чтобы не навешивать обработчики по 5 раз при повторном заходе на уровень
+let doodleControlsBound = false;
+let doodleCanvasRef = null;
+
+// Throttle для touchmove через requestAnimationFrame (уменьшаем нагрузку)
+let touchRAF = 0;
+let pendingTouchSide = 0; // -1 = left, +1 = right
+
 function initJumper() {
+    // На случай повторного входа на уровень — останавливаем прошлый цикл
+    gameActive = false;
+    if (doodleGameLoop) cancelAnimationFrame(doodleGameLoop);
+
     document.getElementById('doodle-container').style.display = 'block';
     const ui = document.getElementById('doodle-ui');
     ui.style.display = 'flex';
@@ -183,10 +203,11 @@ function initJumper() {
     canvasHeight = container.offsetHeight;
 
     const canvas = document.getElementById('doodle-canvas');
-    ctx = canvas.getContext('2d');
+    doodleCanvasRef = canvas;
+    ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
 
     // 2. Узнаем плотность пикселей устройства (на ПК = 1, на iPhone = 2 или 3)
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = Math.min((window.devicePixelRatio || 1), MAX_DPR);
 
     // 3. Устанавливаем РЕАЛЬНОЕ разрешение холста (умножаем на плотность)
     canvas.width = canvasWidth * dpr;
@@ -196,8 +217,9 @@ function initJumper() {
     canvas.style.width = canvasWidth + "px";
     canvas.style.height = canvasHeight + "px";
 
-    // 5. Масштабируем рисование, чтобы координаты кода совпадали с новыми размерами
-    ctx.scale(dpr, dpr);
+    // 5. ВАЖНО: сбрасываем transform, иначе при повторной инициализации масштаб накапливается
+    // (что даёт мыло и лишнюю нагрузку).
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     // Включаем сглаживание (или выключаем, если хочешь пиксель-арт)
     ctx.imageSmoothingEnabled = true;
@@ -209,19 +231,48 @@ function initJumper() {
 }
 
 function setupControls(canvas) {
-    window.onkeydown = (e) => { if (e.code === 'ArrowLeft') keys.left = true; if (e.code === 'ArrowRight') keys.right = true; };
-    window.onkeyup = (e) => { if (e.code === 'ArrowLeft') keys.left = false; if (e.code === 'ArrowRight') keys.right = false; };
-    canvas.addEventListener('touchstart', handleTouch, { passive: false });
-    canvas.addEventListener('touchmove', handleTouch, { passive: false });
-    canvas.addEventListener('touchend', (e) => { e.preventDefault(); keys.left = false; keys.right = false; });
-}
+    // Клавиатура: лёгкий контроль для ПК
+    window.onkeydown = (e) => {
+        if (e.code === 'ArrowLeft') keys.left = true;
+        if (e.code === 'ArrowRight') keys.right = true;
+    };
+    window.onkeyup = (e) => {
+        if (e.code === 'ArrowLeft') keys.left = false;
+        if (e.code === 'ArrowRight') keys.right = false;
+    };
 
-function handleTouch(e) {
-    e.preventDefault();
-    const touchX = e.touches[0].clientX;
-    const rect = e.target.getBoundingClientRect();
-    if (touchX - rect.left < rect.width / 2) { keys.left = true; keys.right = false; }
-    else { keys.left = false; keys.right = true; }
+    // Touch: навешиваем обработчики один раз, чтобы не плодить слушатели при повторном запуске
+    if (doodleControlsBound) return;
+    doodleControlsBound = true;
+
+    const onTouchStartMove = (e) => {
+        e.preventDefault();
+        const touch = e.touches && e.touches[0];
+        if (!touch) return;
+        const rect = canvas.getBoundingClientRect();
+        pendingTouchSide = (touch.clientX - rect.left < rect.width / 2) ? -1 : 1;
+        if (!touchRAF) {
+            touchRAF = requestAnimationFrame(() => {
+                touchRAF = 0;
+                if (pendingTouchSide < 0) {
+                    keys.left = true; keys.right = false;
+                } else {
+                    keys.left = false; keys.right = true;
+                }
+            });
+        }
+    };
+
+    const onTouchEnd = (e) => {
+        e.preventDefault();
+        keys.left = false;
+        keys.right = false;
+        pendingTouchSide = 0;
+    };
+
+    canvas.addEventListener('touchstart', onTouchStartMove, { passive: false });
+    canvas.addEventListener('touchmove', onTouchStartMove, { passive: false });
+    canvas.addEventListener('touchend', onTouchEnd, { passive: false });
 }
 
 function startDoodleLoop() {
@@ -280,7 +331,8 @@ function generatePlatformAt(yPos) {
 
 function update() {
     if (!gameActive) return;
-    const elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
+    const now = Date.now();
+    const elapsed = Math.floor((now - gameStartTime) / 1000);
     const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
     const seconds = (elapsed % 60).toString().padStart(2, '0');
     timerEl.textContent = `⏱ ${minutes}:${seconds}`;
@@ -292,50 +344,84 @@ function update() {
     if (player.y < canvasHeight * 0.45 && player.vy < 0) {
         player.y = canvasHeight * 0.45;
         let shift = -player.vy;
-        platforms.forEach(p => p.y += shift);
-        items.forEach(i => i.y += shift);
+        for (let i = 0; i < platforms.length; i++) platforms[i].y += shift;
+        for (let i = 0; i < items.length; i++) items[i].y += shift;
     }
-    platforms.forEach((p, index) => {
+    for (let pi = 0; pi < platforms.length; pi++) {
+        const p = platforms[pi];
         if (p.y > canvasHeight) {
             let highestY = canvasHeight;
-            platforms.forEach(plat => { if (plat.y < highestY) highestY = plat.y; });
-            let gap = 110 + Math.random() * 40;
+            for (let j = 0; j < platforms.length; j++) {
+                const py = platforms[j].y;
+                if (py < highestY) highestY = py;
+            }
+            const gap = 110 + Math.random() * 40;
             p.y = highestY - gap;
             p.x = Math.random() * (canvasWidth - p.width);
             p.bonus = null;
-            let r = Math.random();
-            if (r < 0.02) p.bonus = 'jetpack'; else if (r < 0.06) p.bonus = 'propeller'; else if (r < 0.14) p.bonus = 'spring';
+            const r = Math.random();
+            if (r < 0.02) p.bonus = 'jetpack';
+            else if (r < 0.06) p.bonus = 'propeller';
+            else if (r < 0.14) p.bonus = 'spring';
 
             // Спавним деталь ниже при респавне
-            if (p.bonus === null && Math.random() < 0.15) items.push({ x: p.x + p.width / 2, y: p.y - 10, collected: false });
+            if (p.bonus === null && Math.random() < 0.15) {
+                items.push({ x: p.x + p.width / 2, y: p.y - 10, collected: false });
+            }
         }
-    });
-    items = items.filter(i => i.y < canvasHeight + 100);
+    }
+    // PERF: фильтрация без создания нового массива (меньше нагрузка на GC)
+    const cutoff = canvasHeight + 100;
+    let write = 0;
+    for (let read = 0; read < items.length; read++) {
+        const it = items[read];
+        if (it.y < cutoff) items[write++] = it;
+    }
+    items.length = write;
     if (player.vy > 0) {
-        platforms.forEach(p => {
-            if (player.x + player.width * 0.7 > p.x && player.x + player.width * 0.3 < p.x + p.width && player.y + player.height > p.y && player.y + player.height < p.y + p.height + player.vy + 2) {
+        const px1 = player.x + player.width * 0.3;
+        const px2 = player.x + player.width * 0.7;
+        const pyBottom = player.y + player.height;
+        const vy = player.vy;
+        for (let i = 0; i < platforms.length; i++) {
+            const p = platforms[i];
+            if (px2 > p.x && px1 < p.x + p.width && pyBottom > p.y && pyBottom < p.y + p.height + vy + 2) {
                 if (p.bonus === 'spring') player.vy = SPRING_FORCE;
                 else if (p.bonus === 'propeller') { player.vy = PROPELLER_FORCE; player.equipment = 'propeller'; }
                 else if (p.bonus === 'jetpack') { player.vy = JETPACK_FORCE; player.equipment = 'jetpack'; }
-                else { player.vy = JUMP_FORCE; if (player.equipment && player.vy > -10) player.equipment = null; }
-            }
-        });
-    }
-    if (player.vy > 0) player.equipment = null;
-    items.forEach(item => {
-        if (!item.collected) {
-            let dx = (player.x + player.width / 2) - item.x;
-            let dy = (player.y + player.height / 2) - item.y;
-            if (Math.sqrt(dx * dx + dy * dy) < 60) {
-                item.collected = true;
-                itemsCollected++;
-                scoreEl.textContent = itemsCollected;
-                scoreEl.style.transform = "scale(1.5)";
-                setTimeout(() => scoreEl.style.transform = "scale(1)", 200);
-                if (itemsCollected >= TOTAL_ITEMS) showVictoryLevel2();
+                else {
+                    player.vy = JUMP_FORCE;
+                    if (player.equipment && player.vy > -10) player.equipment = null;
+                }
+                break;
             }
         }
-    });
+    }
+    if (player.vy > 0) player.equipment = null;
+    // Коллизии: без sqrt (быстрее)
+    const cx = player.x + player.width / 2;
+    const cy = player.y + player.height / 2;
+    const R2 = 60 * 60;
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.collected) continue;
+        const dx = cx - item.x;
+        const dy = cy - item.y;
+        if ((dx * dx + dy * dy) < R2) {
+            item.collected = true;
+            itemsCollected++;
+            scoreEl.textContent = itemsCollected;
+            // Микро-анимацию оставляем, но без лишних reflow: через rAF
+            scoreEl.style.transform = "scale(1.5)";
+            requestAnimationFrame(() => {
+                setTimeout(() => { scoreEl.style.transform = "scale(1)"; }, 200);
+            });
+            if (itemsCollected >= TOTAL_ITEMS) {
+                showVictoryLevel2();
+                break;
+            }
+        }
+    }
     if (player.y > canvasHeight) { showGameOver(); return; }
     draw();
     if (gameActive) doodleGameLoop = requestAnimationFrame(update);
@@ -345,21 +431,23 @@ function draw() {
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
     // Платформы
-    platforms.forEach(p => {
+    for (let i = 0; i < platforms.length; i++) {
+        const p = platforms[i];
         if (imgPlatform.complete && imgPlatform.naturalWidth !== 0) ctx.drawImage(imgPlatform, p.x, p.y, p.width, p.height);
         else { ctx.fillStyle = '#27ae60'; ctx.fillRect(p.x, p.y, p.width, p.height); }
 
         if (p.bonus === 'spring') { const bx = p.x + (PLATFORM_WIDTH - SPRING_WIDTH) / 2; const by = p.y - SPRING_HEIGHT + 46; drawBonus(imgSpring, bx, by, SPRING_WIDTH, SPRING_HEIGHT); }
         else if (p.bonus === 'propeller') { const bx = p.x + (PLATFORM_WIDTH - PROPELLER_WIDTH) / 2; const by = p.y - PROPELLER_HEIGHT + 15; drawBonus(imgPropeller, bx, by, PROPELLER_WIDTH, PROPELLER_HEIGHT); }
         else if (p.bonus === 'jetpack') { const bx = p.x + (PLATFORM_WIDTH - JETPACK_WIDTH) / 2; const by = p.y - JETPACK_HEIGHT + 20; drawBonus(imgJetpack, bx, by, JETPACK_WIDTH, JETPACK_HEIGHT); }
-    });
+    }
 
     // Детали
-    items.forEach(item => {
-        if (item.collected) return;
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.collected) continue;
         if (imgPart.complete && imgPart.naturalWidth !== 0) ctx.drawImage(imgPart, item.x - 30, item.y - 30, 60, 60);
         else { ctx.beginPath(); ctx.arc(item.x, item.y, 20, 0, Math.PI * 2); ctx.fillStyle = '#3498db'; ctx.fill(); }
-    });
+    }
 
     // Игрок (СМЕЩЕНИЕ ВНИЗ)
     // Мы добавляем +20 пикселей к Y, чтобы компенсировать зазор
@@ -440,6 +528,11 @@ const scoreEl2048 = document.getElementById('score-2048');
 const overlay2048GameOver = document.getElementById('overlay-2048-gameover');
 const overlay2048Victory = document.getElementById('overlay-2048-victory');
 const btnNext4 = document.getElementById('btn-next-4');
+
+// Чтобы не добавлять swipe-слушатели на каждую перезапуск-инициализацию 2048
+let swipe2048Bound = false;
+let touchStartX2048 = 0;
+let touchStartY2048 = 0;
 
 let board2048 = [];
 let score2048 = 0;
@@ -656,24 +749,26 @@ function showGameOver2048() {
 }
 
 function setupSwipeListeners() {
-    let touchStartX = 0;
-    let touchStartY = 0;
+    if (swipe2048Bound) return;
+    swipe2048Bound = true;
 
     // Используем уже найденный элемент
     const grid = gridContainer;
 
     grid.addEventListener('touchstart', function(e) {
-        touchStartX = e.changedTouches[0].screenX;
-        touchStartY = e.changedTouches[0].screenY;
+        const t = e.changedTouches && e.changedTouches[0];
+        if (!t) return;
+        touchStartX2048 = t.screenX;
+        touchStartY2048 = t.screenY;
         e.preventDefault();
     }, {passive: false});
 
     grid.addEventListener('touchend', function(e) {
         e.preventDefault();
-        let touchEndX = e.changedTouches[0].screenX;
-        let touchEndY = e.changedTouches[0].screenY;
-        let dx = touchEndX - touchStartX;
-        let dy = touchEndY - touchStartY;
+        const t = e.changedTouches && e.changedTouches[0];
+        if (!t) return;
+        let dx = t.screenX - touchStartX2048;
+        let dy = t.screenY - touchStartY2048;
 
         if(Math.abs(dx) > Math.abs(dy)) {
             if(Math.abs(dx) > 30) dx > 0 ? moveTiles(0, 1) : moveTiles(0, -1);

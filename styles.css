@@ -258,7 +258,11 @@ p {
     pointer-events: none;
 }
 
-#doodle-controls.controls-hint @keyframes doodlePulse {
+#doodle-controls.controls-hint .doodle-control {
+    animation: doodlePulse 1.1s ease-in-out infinite;
+}
+
+@keyframes doodlePulse {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.08); }
 }
@@ -510,55 +514,64 @@ p {
 /* 2: Болт - Ядовито-голубой (Cyan) */
 .tile-2 {
     background-image: url('assets/bolt.png');
+    background-image: image-set(url('assets/bolt.webp') type('image/webp'), url('assets/bolt.png') type('image/png'));
     background-color: #00E5FF;
 }
 
 /* 4: Гайка - Лаймовый зеленый */
 .tile-4 {
     background-image: url('assets/nut.png');
+    background-image: image-set(url('assets/nut.webp') type('image/webp'), url('assets/nut.png') type('image/png'));
     background-color: #32CD32;
 }
 
 /* 8: Шестеренка - Яркая Фуксия (Розовый) */
 .tile-8 {
     background-image: url('assets/gear.png');
+    background-image: image-set(url('assets/gear.webp') type('image/webp'), url('assets/gear.png') type('image/png'));
     background-color: #FF00FF;
 }
 
 /* 16: Микросхема - Электрический Оранжевый */
 .tile-16 {
     background-image: url('assets/chip.png');
+    background-image: image-set(url('assets/chip.webp') type('image/webp'), url('assets/chip.png') type('image/png'));
     background-color: #FF6D00;
 }
 
 /* 32: Плата - Глубокий Фиолетовый */
 .tile-32 {
     background-image: url('assets/board.png');
+    background-image: image-set(url('assets/board.webp') type('image/webp'), url('assets/board.png') type('image/png'));
     background-color: #6200EA;
 }
 
 /* 64: Корпус - Насыщенный Красный (Малиновый) */
 .tile-64 {
     background-image: url('assets/case.png');
+    background-image: image-set(url('assets/case.webp') type('image/webp'), url('assets/case.png') type('image/png'));
     background-color: #D50000;
 }
 
 /* 128: Датчик - Яркий Индиго (Синий) */
 .tile-128 {
     background-image: url('assets/sensor.png');
+    background-image: image-set(url('assets/sensor.webp') type('image/webp'), url('assets/sensor.png') type('image/png'));
     background-color: #2962FF;
 }
 
 /* Финальный прибор - золотое свечение */
 .tile-256 {
     background-image: url('assets/device.png');
+    background-image: image-set(url('assets/device.webp') type('image/webp'), url('assets/device.png') type('image/png'));
     background-color: #edcc61;
     box-shadow: 0 0 15px #ffd700;
     background-size: 95%; /* Чуть крупнее */
 }
 
 /* Если вдруг игрок пойдет дальше 256 */
-.tile-512 { background-image: url('assets/device.png'); background-color: #333; }
+.tile-512 { background-image: url('assets/device.png');
+    background-image: image-set(url('assets/device.webp') type('image/webp'), url('assets/device.png') type('image/png')); background-color: #333; }
 
 .instruction {
     font-size: 14px;

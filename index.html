@@ -15,8 +15,54 @@
     <div id="screen-welcome" class="screen active">
         <h1>🏭 АПЗ КВЕСТ</h1>
         <p>Пройди 3 испытания и собери призы!</p>
-        <button class="btn" onclick="startGame(1)">Начать 1 уровень</button>
+        <button class="btn" onclick="showLevels()">Выбрать уровень</button>
     </div>
+    <!-- Экран: Выбор уровня -->
+    <div id="screen-levels" class="screen">
+        <h2>🎛️ Выбор уровня</h2>
+        <p class="muted">Выбирай любой уровень — статистика хранится отдельно.</p>
+
+        <div class="level-list">
+            <div class="level-card">
+                <div class="level-title">🧩 Логотип 2×2 (4 клетки)</div>
+                <div class="level-stats">Лучшее время: <span id="stat-puzzle-2x2">—</span></div>
+                <button class="btn" onclick="startLevel('puzzle-2x2')">Играть</button>
+            </div>
+
+            <div class="level-card">
+                <div class="level-title">🧩 Логотип 3×3 (9 клеток)</div>
+                <div class="level-stats">Лучшее время: <span id="stat-puzzle-3x3">—</span></div>
+                <button class="btn" onclick="startLevel('puzzle-3x3')">Играть</button>
+            </div>
+
+            <div class="level-card">
+                <div class="level-title">🧩 Логотип 4×4 (16 клеток)</div>
+                <div class="level-stats">Лучшее время: <span id="stat-puzzle-4x4">—</span></div>
+                <button class="btn" onclick="startLevel('puzzle-4x4')">Играть</button>
+            </div>
+
+            <div class="level-card">
+                <div class="level-title">🏃 Jumper</div>
+                <div class="level-stats">Лучший счет: <span id="stat-jumper">—</span></div>
+                <button class="btn" onclick="startLevel('jumper')">Играть</button>
+            </div>
+
+            <div class="level-card">
+                <div class="level-title">🏭 Сборочный цех (2048)</div>
+                <div class="level-stats">Лучший счет: <span id="stat-2048">—</span></div>
+                <button class="btn" onclick="startLevel('factory-2048')">Играть</button>
+            </div>
+
+            <div class="level-card">
+                <div class="level-title">🧠 Квиз</div>
+                <div class="level-stats">Лучший результат: <span id="stat-quiz">—</span></div>
+                <button class="btn" onclick="startLevel('quiz')">Играть</button>
+            </div>
+        </div>
+
+        <button class="btn btn-secondary" onclick="resetAllStats()">Сбросить статистику</button>
+    </div>
+
 
     <!-- Экран 2: Пазл (Уровень 1) -->
     <div id="screen-level1" class="screen">
@@ -25,6 +71,8 @@
         <div id="puzzle-board"></div>
         <p id="puzzle-status"></p>
         <button id="btn-next-2" class="btn hidden" onclick="startGame(2)">Далее →</button>
+
+        <button class="btn btn-secondary" onclick="showLevels()">← К уровням</button>
     </div>
 
     <!-- Экран 3: Джампер (Уровень 2) -->
@@ -38,7 +86,9 @@
             <h2 style="font-size: 14px; margin: 0 10px;">Собери детали</h2>
             <!-- Счет справа -->
             <div><span id="doodle-score">0</span>/12</div>
-        </div>
+    
+        <button class="btn btn-secondary" onclick="showLevels()">← К уровням</button>
+    </div>
 
                 <!-- Игровая зона -->
         <div id="doodle-container">
@@ -94,7 +144,9 @@
         <div class="game-2048-header">
             <div class="score-box">Счет: <span id="score-2048">0</span></div>
             <button onclick="init2048()" style="font-size: 20px; background:none; border:none; cursor:pointer;">🔄</button>
-        </div>
+    
+        <button class="btn btn-secondary" onclick="showLevels()">← К уровням</button>
+    </div>
 
         <!-- Контейнер игры (relative) -->
         <div style="position: relative; width: 300px; margin: 0 auto;">
@@ -128,7 +180,9 @@
         <div id="quiz-container">
             <div id="question-text">...</div>
             <div id="answers-block"></div>
-        </div>
+    
+        <button class="btn btn-secondary" onclick="showLevels()">← К уровням</button>
+    </div>
     </div>
         <!-- Экран 5: Финал (Общий итог) -->
     <div id="screen-final" class="screen">
@@ -138,7 +192,9 @@
         <div class="final-score-box">
             <div class="score-row">
                 <span>🧩 Пазл:</span> <span id="res-l1">0</span>
-            </div>
+        
+        <button class="btn btn-secondary" onclick="showLevels()">← К уровням</button>
+    </div>
             <div class="score-row">
                 <span>🏃 Джампер:</span> <span id="res-l2">0</span>
             </div>

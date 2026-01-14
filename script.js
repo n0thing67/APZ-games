@@ -140,6 +140,19 @@ const imgPropeller = new Image(); imgPropeller.src = 'assets/propeller.png';
 const imgJetpack = new Image(); imgJetpack.src = 'assets/jetpack.png';
 const imgPart = new Image(); imgPart.src = 'assets/part.png';
 
+// Предзагрузка/декодирование изображений для снижения фризов на телефонах
+const __doodleImgs = [imgHero, imgPlatform, imgSpring, imgPropeller, imgJetpack, imgPart];
+__doodleImgs.forEach(img => {
+    img._ready = (img.complete && img.naturalWidth !== 0);
+    // decode может ускорить первое появление, особенно на мобильных
+    if (img.decode) { img.decode().catch(() => {}); }
+    img.addEventListener('load', () => {
+        img._ready = true;
+        if (img.decode) { img.decode().catch(() => {}); }
+    }, { once: true });
+});
+
+
 const TOTAL_ITEMS = 12;
 const GRAVITY = 0.25;
 const JUMP_FORCE = -9;
@@ -516,7 +529,7 @@ function draw() {
     // Платформы
     for (let i = 0; i < platforms.length; i++) {
         const p = platforms[i];
-        if (imgPlatform.complete && imgPlatform.naturalWidth !== 0) ctx.drawImage(imgPlatform, p.x, p.y, p.width, p.height);
+        if (imgPlatform._ready) ctx.drawImage(imgPlatform, p.x, p.y, p.width, p.height);
         else { ctx.fillStyle = '#27ae60'; ctx.fillRect(p.x, p.y, p.width, p.height); }
 
         if (p.bonus === 'spring') { const bx = p.x + (PLATFORM_WIDTH - SPRING_WIDTH) / 2; const by = p.y - SPRING_HEIGHT + 46; drawBonus(imgSpring, bx, by, SPRING_WIDTH, SPRING_HEIGHT); }
@@ -528,7 +541,7 @@ function draw() {
     for (let i = 0; i < items.length; i++) {
         const item = items[i];
         if (item.collected) continue;
-        if (imgPart.complete && imgPart.naturalWidth !== 0) ctx.drawImage(imgPart, item.x - 30, item.y - 30, 60, 60);
+        if (imgPart._ready) ctx.drawImage(imgPart, item.x - 30, item.y - 30, 60, 60);
         else { ctx.beginPath(); ctx.arc(item.x, item.y, 20, 0, Math.PI * 2); ctx.fillStyle = '#3498db'; ctx.fill(); }
     }
 
@@ -536,7 +549,7 @@ function draw() {
     // Мы добавляем +20 пикселей к Y, чтобы компенсировать зазор
     const visualOffset = 40;
 
-    if (imgHero.complete) {
+    if (imgHero._ready) {
          if (player.equipment === 'jetpack') {
             // Рисуем ОДИН большой джетпак по центру
             const jpWidth = 90;  // Ширина джетпака
@@ -569,7 +582,7 @@ function draw() {
         ctx.fillRect(player.x, player.y + visualOffset, player.width, player.height);
     }
 }
-function drawBonus(img, x, y, w, h) { if (img.complete && img.naturalWidth !== 0) ctx.drawImage(img, x, y, w, h); else { ctx.fillStyle = 'red'; ctx.fillRect(x, y, w, h); } }
+function drawBonus(img, x, y, w, h) { if (img._ready) ctx.drawImage(img, x, y, w, h); else { ctx.fillStyle = 'red'; ctx.fillRect(x, y, w, h); } }
 function showGameOver() { gameActive = false; cancelAnimationFrame(doodleGameLoop);
     setDoodleControlsState('hidden');
     document.getElementById('game-over-overlay').classList.add('visible'); }

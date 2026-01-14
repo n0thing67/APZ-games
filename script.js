@@ -1026,19 +1026,54 @@ const questions = [
     { q: "Как называется 3D-чертёж на компьютере?", answers: ["Модель", "Рисунок", "Картина"], correct: 0 }
 ];
 
+// --- Randomization helpers for Quiz (order of questions and answers) ---
+let quizQuestions = [];
+
+function shuffleArray(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
+function prepareQuizQuestions(sourceQuestions) {
+    // Make a deep-ish copy (strings + arrays) and shuffle questions + answers
+    const qCopy = sourceQuestions.map(q => ({
+        q: q.q,
+        a: Array.isArray(q.a) ? q.a.slice() : [],
+        correct: q.correct
+    }));
+
+    shuffleArray(qCopy);
+
+    qCopy.forEach(q => {
+        const order = q.a.map((_, idx) => idx);
+        shuffleArray(order);
+        q.a = order.map(i => q.a[i]);
+        q.correct = order.indexOf(q.correct);
+    });
+
+    return qCopy;
+}
+
+
+
 let currentQuestionIndex = 0;
 let questionStartTime = 0;
 
 function initQuiz() {
+    // Each run: randomize question order + answer order
+    quizQuestions = prepareQuizQuestions(questions);
     currentQuestionIndex = 0;
     levelScores[4] = 0;
     renderQuestion();
 }
 
 function renderQuestion() {
-    const qData = questions[currentQuestionIndex];
+    const qData = quizQuestions[currentQuestionIndex];
     document.getElementById('question-text').textContent = qData.q;
-    document.getElementById('quiz-progress').textContent = `Вопрос ${currentQuestionIndex + 1} из ${questions.length}`;
+    document.getElementById('quiz-progress').textContent = `Вопрос ${currentQuestionIndex + 1} из ${quizQuestions.length}`;
     const container = document.getElementById('answers-block');
     container.innerHTML = '';
 
@@ -1085,7 +1120,7 @@ function handleAnswerClick(btn, index, correctIndex) {
             isAnswering = false;
             currentQuestionIndex++;
 
-            if (currentQuestionIndex < questions.length) {
+            if (currentQuestionIndex < quizQuestions.length) {
                 // Подменяем текст, пока его НЕ ВИДНО
                 renderQuestion();
 

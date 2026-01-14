@@ -36,12 +36,22 @@
             <!-- Заголовок по центру (можно убрать, если не влезает на мелких экранах) -->
             <h2 style="font-size: 14px; margin: 0 10px;">Собери детали</h2>
             <!-- Счет справа -->
-            <div><span id="doodle-score">0</span>/12</div>
+            <div><span id="doodle-score">0</span> / 12</div>
         </div>
 
                 <!-- Игровая зона -->
         <div id="doodle-container">
             <canvas id="doodle-canvas"></canvas>
+
+            <!-- Интуитивные кнопки управления (для телефонов) -->
+            <div id="doodle-controls" aria-label="Управление">
+                <button id="doodle-btn-left" class="doodle-control" aria-label="Прыгать влево" type="button">
+                    <span class="arrow">←</span>
+                </button>
+                <button id="doodle-btn-right" class="doodle-control" aria-label="Прыгать вправо" type="button">
+                    <span class="arrow">→</span>
+                </button>
+            </div>
 
             <!-- Стартовый экран -->
             <div id="doodle-start-msg" onclick="startDoodleLoop()">

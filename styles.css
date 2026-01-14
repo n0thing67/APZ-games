@@ -242,9 +242,9 @@ p {
     right: 0;
     bottom: 10px;
     display: flex;
-    justify-content: center;
-    gap: 16px;
-    pointer-events: none; /* кликабельными будут только кнопки */
+    justify-content: space-between;
+    padding: 0 20px;
+    pointer-events: none;
     z-index: 15;
 }
 
@@ -676,3 +676,4 @@ hr {
     opacity: 0;
     pointer-events: none; /* Блокируем клики, пока невидимо */
 }
+

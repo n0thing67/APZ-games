@@ -1,6 +1,5 @@
-let tg = window.Telegram.WebApp;
-tg.expand();
-
+const tg = window.Telegram?.WebApp;
+if (tg?.expand) tg.expand();
 // ===== ASSETS: ускоряем загрузку через WebP (с fallback) =====
 function supportsWebP() {
     try {
@@ -221,7 +220,7 @@ function createPuzzleElements() {
         const correctRow = Math.floor(correctIndex / puzzleSize);
         const correctCol = correctIndex % puzzleSize;
 
-        div.style.backgroundImage = `url('${assetPath('logo', 'jpg')}')`;
+        div.style.backgroundImage = `url('${assetPath('board', 'jpg')}')`;
         div.style.backgroundSize = `${puzzleSize * 100}% ${puzzleSize * 100}%`;
 
         const x = (puzzleSize === 1) ? 0 : (correctCol / (puzzleSize - 1)) * 100;
@@ -361,7 +360,7 @@ function preloadPuzzleAssets() {
     // Для любого размера пазла используем одну картинку board.webp
     if (puzzleAssetsReady) return puzzleAssetsReady;
     const img = new Image();
-    img.src = assetPath('logo', 'jpg');
+    img.src = assetPath('board', 'jpg');
     puzzleAssetsReady = decodeImage(img).catch(() => {});
     return puzzleAssetsReady;
 }
@@ -1342,12 +1341,11 @@ function showFinalScreen() {
 function closeApp() {
     // Отправляем общую сумму
     let totalScore = levelScores[1] + levelScores[2] + levelScores[3] + levelScores[4];
-    tg.sendData(JSON.stringify({score: totalScore}));
-    tg.close();
+    if (tg?.sendData) tg.sendData(JSON.stringify({score: totalScore}));
+    if (tg?.close) tg.close();
 }
 
 // Инициализация меню уровней
 window.addEventListener('load', () => {
     renderLevelMenuStats();
 });
-

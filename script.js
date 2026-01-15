@@ -99,12 +99,33 @@ function exportStats() {
     showFinalScreenFromStats();
 }
 
+// Итоговый счёт: сумма bestScore по сыгранным уровням.
+// Это значение отправляем боту в поле `score`, чтобы команда /stats показывала корректные данные.
+function computeTotalScore() {
+    try {
+        const order = ['puzzle-2x2', 'puzzle-3x3', 'puzzle-4x4', 'jumper', 'factory-2048', 'quiz'];
+        let total = 0;
+        for (const id of order) {
+            const s = stats?.[id];
+            if (!s || (s.plays || 0) <= 0) continue;
+            const bs = s.bestScore;
+            if (typeof bs === 'number' && Number.isFinite(bs)) total += bs;
+        }
+        return total;
+    } catch (e) {
+        return 0;
+    }
+}
+
 function buildStatsPayload() {
     return {
         type: 'apz_stats',
         version: 1,
         exportedAt: new Date().toISOString(),
         message: 'Игра завершена. Открываю статистику.',
+        // Главное поле для бота (таблица лидеров)
+        score: computeTotalScore(),
+        // Подробная статистика остаётся в payload на будущее
         stats
     };
 }
@@ -251,7 +272,7 @@ function showScreen(screenId) {
     const s = document.getElementById(screenId);
     if (s) s.classList.add('active');
 
-    const isLevelScreen = ['screen-level1','screen-level2','screen-level3','screen-level4'].includes(screenId);
+    const isLevelScreen = (screenId === 'screen-level1' || screenId === 'screen-level2' || screenId === 'screen-level3' || screenId === 'screen-level4');
 
     // Верхняя кнопка "К уровням":
     // - во время прохождения уровня: видна сверху
@@ -613,7 +634,7 @@ const MOVE_SPEED = 5;
 // РАЗМЕРЫ
 const HERO_SIZE = 80;
 const PLATFORM_WIDTH = 100;
-const PLATFORM_HEIGHT = 80;
+const PLATFORM_HEIGHT = 50;
 
 // --- Sprite cropping ---
 // Исходные webp-спрайты «hero/platform» содержат большой прозрачный padding.
@@ -1686,5 +1707,4 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // click + pointerup для надёжности
     document.addEventListener('click', handleAction, true);
-    document.addEventListener('pointerup', handleAction, true);
 });

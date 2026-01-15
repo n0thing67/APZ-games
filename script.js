@@ -1582,6 +1582,15 @@ window.addEventListener('load', () => {
 // В некоторых WebView (в т.ч. Telegram) inline onclick может быть отключён политиками безопасности.
 // Поэтому для критичных кнопок дублируем обработчики через addEventListener.
 window.addEventListener('DOMContentLoaded', () => {
+    // На некоторых WebView (особенно Android) первый рендер может привести к тому,
+    // что глобальные кнопки остаются видимыми. Принудительно синхронизируем UI:
+    // на приветственном экране кнопка "К уровням" показываться не должна.
+    try {
+        levelCompleted = false;
+        currentLevelId = null;
+        showScreen('screen-welcome');
+    } catch (e) {}
+
     const btnChoose = document.getElementById('btn-choose-level');
     if (btnChoose) {
         const go = () => showLevels();

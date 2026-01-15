@@ -85,11 +85,60 @@ function showScreen(screenId) {
     document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
     const s = document.getElementById(screenId);
     if (s) s.classList.add('active');
+
+    // Верхняя кнопка "К уровням" показывается на всех экранах уровней,
+    // но скрывается на приветствии и в меню выбора уровней.
+    const topbar = document.getElementById('global-topbar');
+    if (topbar) {
+        const hide = (screenId === 'screen-welcome' || screenId === 'screen-levels');
+        topbar.classList.toggle('hidden', hide);
+    }
 }
 
 function showLevels() {
     showScreen('screen-levels');
     renderLevelMenuStats();
+}
+
+// При выходе из уровня важно остановить активные игровые циклы (особенно Jumper),
+// иначе они продолжат жечь CPU в фоне.
+function stopJumperNow() {
+    try {
+        gameActive = false;
+        if (doodleGameLoop) cancelAnimationFrame(doodleGameLoop);
+        doodleGameLoop = 0;
+        keys.left = false; keys.right = false;
+        pendingTouchMove = 0; pendingTouchSide = 0;
+        if (touchRAF) { cancelAnimationFrame(touchRAF); touchRAF = 0; }
+
+        const container = document.getElementById('doodle-container');
+        const ui = document.getElementById('doodle-ui');
+        const startMsg = document.getElementById('doodle-start-msg');
+        const gate = document.getElementById('factory-gate-container');
+        const over = document.getElementById('game-over-overlay');
+        const victory = document.getElementById('victory-overlay');
+
+        if (container) {
+            container.classList.remove('game-running');
+            container.style.display = '';
+        }
+        if (ui) ui.style.display = '';
+        if (startMsg) startMsg.style.display = '';
+        if (gate) {
+            gate.style.display = 'none';
+            gate.classList.remove('gate-visible', 'lights-on');
+        }
+        if (over) over.classList.remove('visible');
+        if (victory) victory.classList.remove('visible');
+        setDoodleControlsState(false);
+    } catch (e) {}
+}
+
+function exitToLevels() {
+    // Останавливаем активные циклы
+    stopJumperNow();
+    // (2048/quiz/puzzle не крутят rAF-цикл постоянно)
+    showLevels();
 }
 
 // Текущее прохождение
@@ -195,8 +244,7 @@ function initPuzzle(size = 3) {
         updatePuzzlePositions();
 
         if (status) { status.textContent = ''; }
-        const nextBtn = document.getElementById('btn-next-2');
-        if (nextBtn) nextBtn.classList.add('hidden');
+        // Кнопки "Далее" убраны — после прохождения остаётся только возврат в меню уровней.
     });
 }
 function createPuzzleElements() {
@@ -220,7 +268,7 @@ function createPuzzleElements() {
         const correctRow = Math.floor(correctIndex / puzzleSize);
         const correctCol = correctIndex % puzzleSize;
 
-        div.style.backgroundImage = `url('${assetPath('logo', 'jpg')}')`;
+        div.style.backgroundImage = `url('${assetPath('board', 'jpg')}')`;
         div.style.backgroundSize = `${puzzleSize * 100}% ${puzzleSize * 100}%`;
 
         const x = (puzzleSize === 1) ? 0 : (correctCol / (puzzleSize - 1)) * 100;
@@ -299,9 +347,7 @@ function checkPuzzleWin() {
     // Сохраняем статистику именно этого варианта пазла
     finishLevel({ score, timeMs });
 
-    // Кнопка "Далее" (если идём по линейному сценарию)
-    const nextBtn = document.getElementById('btn-next-2');
-    if (nextBtn) nextBtn.classList.remove('hidden');
+    // "Далее" убрано — пользователь сам выбирает следующий уровень в меню.
 }
 
 
@@ -360,7 +406,7 @@ function preloadPuzzleAssets() {
     // Для любого размера пазла используем одну картинку board.webp
     if (puzzleAssetsReady) return puzzleAssetsReady;
     const img = new Image();
-    img.src = assetPath('logo', 'jpg');
+    img.src = assetPath('board', 'jpg');
     puzzleAssetsReady = decodeImage(img).catch(() => {});
     return puzzleAssetsReady;
 }
@@ -872,10 +918,7 @@ function finishLevel2() {
     // Затем включаем "свет" на картинке
     setTimeout(() => {
         gateContainer.classList.add('lights-on');
-        setTimeout(() => {
-            const btn = document.getElementById('btn-next-3');
-            if(btn) { btn.classList.remove('hidden'); btn.onclick = () => startGame(3); }
-        }, 1000);
+        // Кнопка "Далее" убрана — после победы игрок возвращается в меню уровней вручную.
     }, 150);
 }
 
@@ -925,7 +968,6 @@ const gridContainer = document.getElementById('grid-container');
 const scoreEl2048 = document.getElementById('score-2048');
 const overlay2048GameOver = document.getElementById('overlay-2048-gameover');
 const overlay2048Victory = document.getElementById('overlay-2048-victory');
-const btnNext4 = document.getElementById('btn-next-4');
 
 // Чтобы не добавлять swipe-слушатели на каждую перезапуск-инициализацию 2048
 let swipe2048Bound = false;
@@ -946,7 +988,6 @@ function init2048() {
     scoreEl2048.textContent = '0';
 
     // Сброс UI
-    btnNext4.classList.add('hidden');
     overlay2048GameOver.classList.remove('visible');
     overlay2048Victory.classList.remove('visible');
 
@@ -1141,7 +1182,7 @@ function showVictory2048() {
     overlay2048Victory.classList.add('visible');
     setTimeout(() => {
         overlay2048Victory.classList.remove('visible');
-        btnNext4.classList.remove('hidden');
+        // Кнопка "Далее" убрана — после победы игрок может вернуться в меню уровней.
     }, 2000);
 }
 
@@ -1377,7 +1418,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!action) return;
 
         if (action === 'show-levels') {
-            showLevels();
+            exitToLevels();
         } else if (action === 'reset-stats') {
             resetAllStats();
         } else if (action === 'start-game') {

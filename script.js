@@ -611,6 +611,15 @@ const HERO_SIZE = 80;
 const PLATFORM_WIDTH = 100;
 const PLATFORM_HEIGHT = 80;
 
+// --- Sprite cropping ---
+// Исходные webp-спрайты «hero/platform» содержат большой прозрачный padding.
+// Если рисовать весь исходник в (width,height), видимая картинка смещается
+// относительно хитбокса (player/platform), и создаётся эффект «прыжка по воздуху».
+// Поэтому рисуем только внутреннюю область с объектом.
+// (координаты подобраны под текущие assets/*.webp)
+const HERO_SPRITE_CROP = { sx: 31, sy: 39, sw: 969, sh: 892 };
+const PLATFORM_SPRITE_CROP = { sx: 63, sy: 366, sw: 896, sh: 259 };
+
 const SPRING_WIDTH = 60; const SPRING_HEIGHT = 50;
 const PROPELLER_WIDTH = 60; const PROPELLER_HEIGHT = 50;
 const JETPACK_WIDTH = 60; const JETPACK_HEIGHT = 60;
@@ -1010,11 +1019,16 @@ function update() {
 function draw() {
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-    // Платформы
+    // Платформы (рисуем обрезанный спрайт, чтобы картинка совпадала с хитбоксом)
     for (let i = 0; i < platforms.length; i++) {
         const p = platforms[i];
-        if (imgPlatform.complete && imgPlatform.naturalWidth !== 0) ctx.drawImage(imgPlatform, p.x, p.y, p.width, p.height);
-        else { ctx.fillStyle = '#27ae60'; ctx.fillRect(p.x, p.y, p.width, p.height); }
+        if (imgPlatform.complete && imgPlatform.naturalWidth !== 0) {
+            const c = PLATFORM_SPRITE_CROP;
+            ctx.drawImage(imgPlatform, c.sx, c.sy, c.sw, c.sh, p.x, p.y, p.width, p.height);
+        } else {
+            ctx.fillStyle = '#27ae60';
+            ctx.fillRect(p.x, p.y, p.width, p.height);
+        }
 
         if (p.bonus === 'spring') { const bx = p.x + (PLATFORM_WIDTH - SPRING_WIDTH) / 2; const by = p.y - SPRING_HEIGHT + 46; drawBonus(imgSpring, bx, by, SPRING_WIDTH, SPRING_HEIGHT); }
         else if (p.bonus === 'propeller') { const bx = p.x + (PLATFORM_WIDTH - PROPELLER_WIDTH) / 2; const by = p.y - PROPELLER_HEIGHT + 15; drawBonus(imgPropeller, bx, by, PROPELLER_WIDTH, PROPELLER_HEIGHT); }
@@ -1029,11 +1043,8 @@ function draw() {
         else { ctx.beginPath(); ctx.arc(item.x, item.y, 20, 0, Math.PI * 2); ctx.fillStyle = '#3498db'; ctx.fill(); }
     }
 
-    // Игрок (СМЕЩЕНИЕ ВНИЗ)
-    // Мы добавляем +20 пикселей к Y, чтобы компенсировать зазор
-    const visualOffset = 40;
-
-    if (imgHero.complete) {
+    // Игрок (рисуем обрезанный спрайт, без визуальных смещений)
+    if (imgHero.complete && imgHero.naturalWidth !== 0) {
          if (player.equipment === 'jetpack') {
             // Рисуем ОДИН большой джетпак по центру
             const jpWidth = 90;  // Ширина джетпака
@@ -1041,29 +1052,30 @@ function draw() {
 
             // Центрируем относительно героя
             const jpX = player.x + (player.width - jpWidth) / 2;
-            const jpY = player.y + 10 + visualOffset; // Чуть ниже плеч
+            const jpY = player.y + 10; // Чуть ниже плеч
 
             ctx.drawImage(imgJetpack, jpX, jpY, jpWidth, jpHeight);
 
             // Огонь (по центру джетпака)
             ctx.fillStyle = 'orange';
             ctx.beginPath();
-            ctx.moveTo(player.x + player.width / 2 - 10, player.y + 70 + visualOffset);
-            ctx.lineTo(player.x + player.width / 2 + 10, player.y + 70 + visualOffset);
+            ctx.moveTo(player.x + player.width / 2 - 10, player.y + 70);
+            ctx.lineTo(player.x + player.width / 2 + 10, player.y + 70);
             ctx.fill();
         }
 
         // ГЕРОЙ (Рисуется ПОВЕРХ джетпака)
-        ctx.drawImage(imgHero, player.x, player.y + visualOffset, player.width, player.height);
+        const hc = HERO_SPRITE_CROP;
+        ctx.drawImage(imgHero, hc.sx, hc.sy, hc.sw, hc.sh, player.x, player.y, player.width, player.height);
 
         if (player.equipment === 'propeller') {
             // Пропеллер тоже опускаем
-            ctx.drawImage(imgPropeller, player.x + 11, player.y - 25 + visualOffset, 60, 50);
+            ctx.drawImage(imgPropeller, player.x + 11, player.y - 25, 60, 50);
         }
     } else {
         ctx.fillStyle = '#e67e22';
-        // Если картинки нет, квадрат тоже рисуем со смещением, чтобы видеть хитбокс
-        ctx.fillRect(player.x, player.y + visualOffset, player.width, player.height);
+        // Если картинки нет, рисуем ровно по хитбоксу
+        ctx.fillRect(player.x, player.y, player.width, player.height);
     }
 }
 function drawBonus(img, x, y, w, h) { if (img.complete && img.naturalWidth !== 0) ctx.drawImage(img, x, y, w, h); else { ctx.fillStyle = 'red'; ctx.fillRect(x, y, w, h); } }

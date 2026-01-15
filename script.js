@@ -277,6 +277,9 @@ function showScreen(screenId) {
 function showLevels() {
     showScreen('screen-levels');
     renderLevelMenuStats();
+    // Защита от "тапа-сквозь": сразу после перехода в меню уровней
+    // первый клик может прилететь от открытия WebApp.
+    lockClicks(450);
 }
 
 // При выходе из уровня важно остановить активные игровые циклы (особенно Jumper),
@@ -1579,9 +1582,20 @@ window.addEventListener('load', () => {
     renderLevelMenuStats();
 });
 
+// === Anti-ghost-tap защита для Android/WebView ===
+// Частая проблема: первый тап, которым пользователь открывает WebApp в Telegram,
+// "проваливается" внутрь WebView и нажимает кнопку (часто — запуск уровня).
+// Мы глушим клики на короткое время после загрузки и после перехода на экран уровней.
+let ignoreClickUntil = 0;
+function lockClicks(ms = 600) {
+    ignoreClickUntil = Date.now() + ms;
+}
+
 // В некоторых WebView (в т.ч. Telegram) inline onclick может быть отключён политиками безопасности.
 // Поэтому для критичных кнопок дублируем обработчики через addEventListener.
 window.addEventListener('DOMContentLoaded', () => {
+    // Глушим клики сразу после загрузки WebView
+    lockClicks(900);
     // На некоторых WebView (особенно Android) первый рендер может привести к тому,
     // что глобальные кнопки остаются видимыми. Принудительно синхронизируем UI:
     // на приветственном экране кнопка "К уровням" показываться не должна.
@@ -1593,17 +1607,30 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const btnChoose = document.getElementById('btn-choose-level');
     if (btnChoose) {
-        const go = () => showLevels();
+        const go = (e) => {
+            // защита от первого "призрачного" клика
+            if (Date.now() < ignoreClickUntil) {
+                e?.preventDefault?.();
+                e?.stopPropagation?.();
+                return;
+            }
+            showLevels();
+        };
+        // Важно: только click. pointerup/touchend иногда срабатывают призрачно при открытии WebApp.
         btnChoose.addEventListener('click', go);
-        // На мобильных WebView иногда "click" срабатывает нестабильно — подстрахуемся.
-        btnChoose.addEventListener('pointerup', go);
-        btnChoose.addEventListener('touchend', go, { passive: true });
     }
 
     // Универсальные обработчики вместо inline onclick (Telegram/WebView может их блокировать)
     const handleAction = (e) => {
         const el = e.target.closest('[data-action], [data-level]');
         if (!el) return;
+
+        // Общая защита от "ghost click" сразу после открытия WebApp/смены экрана
+        if (e.type === 'click' && Date.now() < ignoreClickUntil) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
 
         // На некоторых Android/WebView бывают "ghost" pointer/touch события при открытии экрана.
         // Чтобы уровень не запускался сам, старт уровня разрешаем только по обычному click.

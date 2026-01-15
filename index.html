@@ -25,7 +25,7 @@
     <!-- Экран 1: Приветствие -->
     <div id="screen-welcome" class="screen active">
         <h1>🏭 АПЗ КВЕСТ</h1>
-        <p>пройдии испытания и собери призы!</p>
+        <p>Пройди 3 испытания и собери призы!</p>
         <!-- В Telegram WebView inline onclick может блокироваться CSP, поэтому обработчик клика вешаем в script.js -->
         <button id="btn-choose-level" class="btn">Выбрать уровень</button>
     </div>
@@ -198,32 +198,21 @@
         <h1>🎉 ФИНИШ!</h1>
         <p>Твоя смена на заводе окончена.</p>
 
+        <!-- Динамический список: показываем только сыгранные уровни -->
         <div class="final-score-box">
-            <div class="score-row">
-                <span>🧩 Пазл:</span> <span id="res-l1">0</span>
-        
-    </div>
-            <div class="score-row">
-                <span>🏃 Джампер:</span> <span id="res-l2">0</span>
-            </div>
-            <div class="score-row">
-                <span>🏭 Сборка 2048:</span> <span id="res-l3">0</span>
-            </div>
-            <div class="score-row">
-                <span>🧠 Квиз:</span> <span id="res-l4">0</span>
-            </div>
+            <div id="final-stats-list"></div>
             <hr>
             <div class="score-row total">
-                <span>ИТОГО:</span> <span id="final-score-val">0</span>
+                <span>ИТОГО (очки):</span> <span id="final-score-val">0</span>
+            </div>
+
+            <!-- Кнопки финала: сразу под статистикой (как обычные кнопки) -->
+            <div id="final-actions" class="final-actions">
+                <button class="btn btn-secondary" data-action="show-levels">← К уровням</button>
+                <button class="btn" data-action="final-send-stats">К статистике</button>
             </div>
         </div>
-
-        <!-- Кнопку "Сохранить статистику" переносим в меню уровней -->
     </div>
     <script src="script.js"></script>
 </body>
 </html>
-
-
-
-

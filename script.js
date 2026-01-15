@@ -93,71 +93,147 @@ function notify(msg) {
     } catch (e) {}
 }
 
-
-function confirmOpenStats(onConfirm) {
-    const message = 'Сейчас будет переход в Telegram для отображения статистики.\n\n' +
-                    'Если хотите продолжить играть — нажмите «Отмена».';
-    // Telegram WebApp popup (если доступно)
-    if (tg?.showPopup) {
-        try {
-            tg.showPopup(
-                {
-                    title: 'Переход к статистике',
-                    message,
-                    buttons: [
-                        { id: 'stats', type: 'default', text: 'К статистике' },
-                        { id: 'cancel', type: 'cancel', text: 'Отмена' }
-                    ]
-                },
-                (btnId) => {
-                    if (btnId === 'stats') onConfirm?.();
-                }
-            );
-            return;
-        } catch (e) {}
-    }
-    // Fallback для браузера
-    if (window.confirm(message + '\n\nПерейти к статистике?')) onConfirm?.();
+function exportStats() {
+    // По требованиям: экран "Финиш" показываем ТОЛЬКО когда пользователь нажимает "Сохранить статистику".
+    // Уже с этого экрана он решит: вернуться в игру или уйти в Telegram к статистике.
+    showFinalScreenFromStats();
 }
 
-function exportStats() {
-    const payload = {
+function buildStatsPayload() {
+    return {
         type: 'apz_stats',
         version: 1,
         exportedAt: new Date().toISOString(),
-        // это сообщение должен показать бот после закрытия WebApp
-        note: 'Игра завершена. Открываю статистику.',
-        stats,
-        levelScores
+        message: 'Игра завершена. Открываю статистику.',
+        stats
     };
+}
 
-    // В Telegram WebApp: спросим подтверждение и перейдём в Telegram
-    if (tg?.sendData) {
-        confirmOpenStats(() => {
+function showFinalScreenFromStats() {
+    // Финал — это НЕ автопереход после квиза, а ручной вызов из меню уровней.
+    // Обновляем список сыгранных уровней и общий итог.
+    const list = document.getElementById('final-stats-list');
+    if (list) list.innerHTML = '';
+
+    let totalScore = 0;
+    const playedIds = Object.keys(LEVEL_DEFS).filter(id => (stats[id]?.plays || 0) > 0);
+
+    // Удобный порядок показа
+    const order = ['puzzle-2x2', 'puzzle-3x3', 'puzzle-4x4', 'jumper', 'factory-2048', 'quiz'];
+    const ids = order.filter(id => playedIds.includes(id));
+
+    if (ids.length === 0 && list) {
+        list.innerHTML = '<div class="score-row"><span>Пока нет сыгранных уровней</span><span>—</span></div>';
+    }
+
+    ids.forEach(id => {
+        const def = LEVEL_DEFS[id];
+        const s = stats[id] || {};
+
+        // Значение для отображения
+        let valueText = '—';
+        let scoreForTotal = 0;
+
+        if (def.stat === 'time') {
+            // Для пазлов основной показатель — лучшее время
+            valueText = formatTime(s.bestTimeMs);
+            scoreForTotal = (typeof s.bestScore === 'number') ? s.bestScore : 0;
+        } else {
+            valueText = (s.bestScore ?? '—');
+            scoreForTotal = (typeof s.bestScore === 'number') ? s.bestScore : 0;
+        }
+
+        totalScore += scoreForTotal;
+
+        if (list) {
+            const row = document.createElement('div');
+            row.className = 'score-row';
+            row.innerHTML = `<span>${def.title}:</span> <span>${valueText}</span>`;
+            list.appendChild(row);
+        }
+    });
+
+    // Плавная анимация итогового счёта
+    const scoreVal = document.getElementById('final-score-val');
+    if (scoreVal) {
+        let displayScore = 0;
+        const step = Math.max(1, Math.ceil(totalScore / 50));
+        scoreVal.textContent = '0';
+        const timer = setInterval(() => {
+            displayScore += step;
+            if (displayScore >= totalScore) {
+                displayScore = totalScore;
+                clearInterval(timer);
+            }
+            scoreVal.textContent = String(displayScore);
+        }, 30);
+    }
+
+    showScreen('screen-final');
+}
+
+function sendStatsAndClose() {
+    const proceed = () => {
+        const payload = buildStatsPayload();
+
+        // В Telegram WebApp: отправляем данные и закрываем WebApp
+        if (tg?.sendData) {
             try {
                 tg.sendData(JSON.stringify(payload));
+                // Закрываем, чтобы пользователь вернулся в Telegram и увидел сообщение бота
+                tg.close();
+                return;
             } catch (e) {}
-            // Закрываем WebApp — пользователь вернётся в Telegram
-            try { tg.close(); } catch (e) {}
-        });
+        }
+
+        // В обычном браузере: скачиваем JSON
+        try {
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'apz_stats.json';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            notify('Файл статистики сохранён ✅');
+        } catch (e) {
+            notify('Не удалось сохранить статистику 😕');
+        }
+    };
+
+    const warningMsg = 'Сейчас будет переход в Telegram для отображения статистики.\n' +
+        'Если хочешь продолжить играть — нажми «Отмена».\n\n' +
+        'Перейти к статистике?';
+
+    // В Telegram показываем нативный popup с кнопками
+    if (tg?.showPopup) {
+        tg.showPopup(
+            {
+                title: 'К статистике',
+                message: 'Сейчас будет переход в Telegram для отображения статистики.\n' +
+                    'Если хочешь продолжить играть — нажми «Отмена».',
+                buttons: [
+                    { id: 'cancel', type: 'cancel', text: 'Отмена' },
+                    { id: 'go', type: 'default', text: 'К статистике' }
+                ]
+            },
+            (btnId) => {
+                if (btnId === 'go') proceed();
+            }
+        );
         return;
     }
 
-    // В обычном браузере: сохраняем файл
-    try {
-        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'apz_stats.json';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-        notify('Файл статистики сохранён ✅');
-    } catch (e) {
-        notify('Не удалось сохранить статистику 😕');
+    // Фолбэк для браузера
+    if (typeof confirm === 'function') {
+        if (confirm(warningMsg)) proceed();
+        return;
     }
+
+    // Если confirm недоступен — просто продолжаем
+    proceed();
 }
 
 function showScreen(screenId) {
@@ -173,8 +249,10 @@ function showScreen(screenId) {
     // - на приветствии и в меню уровней: скрыта
     const topbar = document.getElementById('global-topbar');
     if (topbar) {
-        const hideTop = (screenId === 'screen-welcome' || screenId === 'screen-levels' || (isLevelScreen && levelCompleted));
-        topbar.classList.toggle('hidden', hideTop);
+        // Показываем верхнюю кнопку только во время прохождения уровней.
+        // На финале/приветствии/в меню уровней — скрыта.
+        const showTop = (isLevelScreen && !levelCompleted);
+        topbar.classList.toggle('hidden', !showTop);
     }
 
     // Нижняя кнопка "К уровням": появляется только когда уровень пройден (на экранах уровней)
@@ -1443,43 +1521,27 @@ function handleAnswerClick(btn, index, correctIndex) {
                 // 4. Плавно проявляем новый вопрос
                 container.classList.remove('quiz-hidden');
             } else {
-                showFinalScreen();
+                finishQuizLevel();
             }
         }, 500); // Синхронизировано с CSS transition: 0.5s
 
     }, 1500);
 }
 
-function showFinalScreen() {
-    document.getElementById('screen-level4').classList.remove('active');
-    document.getElementById('screen-final').classList.add('active');
-
-    // Сохраняем статистику квиза
+function finishQuizLevel() {
+    // По требованиям: после завершения квиза — такое же поведение, как у остальных уровней:
+    // остаёмся на экране уровня и показываем нижнюю кнопку "К уровням".
     const timeMs = Date.now() - levelStartTime;
-    finishLevel({ score: levelScores[4], timeMs });
+    const score = levelScores[4] || 0;
+    finishLevel({ score, timeMs });
 
-    // Заполняем таблицу
-    document.getElementById('res-l1').textContent = levelScores[1];
-    document.getElementById('res-l2').textContent = levelScores[2];
-    document.getElementById('res-l3').textContent = levelScores[3];
-    document.getElementById('res-l4').textContent = levelScores[4];
-
-    // Итого
-    let totalScore = levelScores[1] + levelScores[2] + levelScores[3] + levelScores[4];
-
-    // Анимация итогового счета
-    const scoreVal = document.getElementById('final-score-val');
-    let displayScore = 0;
-    const step = Math.ceil(totalScore / 50);
-
-    const timer = setInterval(() => {
-        displayScore += step;
-        if (displayScore >= totalScore) {
-            displayScore = totalScore;
-            clearInterval(timer);
-        }
-        scoreVal.textContent = displayScore;
-    }, 30);
+    // UI: показываем сообщение о завершении и убираем варианты ответов
+    const qText = document.getElementById('question-text');
+    const answers = document.getElementById('answers-block');
+    const progress = document.getElementById('quiz-progress');
+    if (progress) progress.textContent = '✅ Квиз завершён';
+    if (qText) qText.textContent = 'Ты прошёл квиз! Теперь можно вернуться к уровням.';
+    if (answers) answers.innerHTML = '';
 }
 
 // === ФИНАЛ: ОТПРАВКА ДАННЫХ ===
@@ -1527,6 +1589,8 @@ window.addEventListener('DOMContentLoaded', () => {
             resetAllStats();
         } else if (action === 'save-stats') {
             exportStats();
+        } else if (action === 'final-send-stats') {
+            sendStatsAndClose();
         } else if (action === 'start-game') {
             const lvl = Number(el.dataset.level || 1);
             startGame(lvl);

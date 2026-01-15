@@ -76,6 +76,32 @@ p {
     display: none;
 }
 
+/* === Верхняя кнопка "К уровням" во время прохождения === */
+.topbar {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 1001; /* поверх игровых оверлеев */
+    width: auto;
+}
+
+.topbar-btn {
+    background: rgba(0,0,0,0.25);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.35);
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+
+.topbar-btn:active {
+    transform: scale(0.98);
+}
+
 /* === УРОВЕНЬ 1: ПАЗЛ (Анимация) === */
 #puzzle-board {
     position: relative; /* База координат */

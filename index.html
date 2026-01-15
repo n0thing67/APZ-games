@@ -15,7 +15,8 @@
     <div id="screen-welcome" class="screen active">
         <h1>🏭 АПЗ КВЕСТ</h1>
         <p>Пройди 3 испытания и собери призы!</p>
-        <button class="btn" onclick="showLevels()">Выбрать уровень</button>
+        <!-- В Telegram WebView inline onclick может блокироваться CSP, поэтому обработчик клика вешаем в script.js -->
+        <button id="btn-choose-level" class="btn">Выбрать уровень</button>
     </div>
     <!-- Экран: Выбор уровня -->
     <div id="screen-levels" class="screen">
@@ -26,41 +27,41 @@
             <div class="level-card">
                 <div class="level-title">🧩 Логотип 2×2 (4 клетки)</div>
                 <div class="level-stats">Лучшее время: <span id="stat-puzzle-2x2">—</span></div>
-                <button class="btn" onclick="startLevel('puzzle-2x2')">Играть</button>
+                <button class="btn" data-level="puzzle-2x2">Играть</button>
             </div>
 
             <div class="level-card">
                 <div class="level-title">🧩 Логотип 3×3 (9 клеток)</div>
                 <div class="level-stats">Лучшее время: <span id="stat-puzzle-3x3">—</span></div>
-                <button class="btn" onclick="startLevel('puzzle-3x3')">Играть</button>
+                <button class="btn" data-level="puzzle-3x3">Играть</button>
             </div>
 
             <div class="level-card">
                 <div class="level-title">🧩 Логотип 4×4 (16 клеток)</div>
                 <div class="level-stats">Лучшее время: <span id="stat-puzzle-4x4">—</span></div>
-                <button class="btn" onclick="startLevel('puzzle-4x4')">Играть</button>
+                <button class="btn" data-level="puzzle-4x4">Играть</button>
             </div>
 
             <div class="level-card">
                 <div class="level-title">🏃 Jumper</div>
                 <div class="level-stats">Лучший счет: <span id="stat-jumper">—</span></div>
-                <button class="btn" onclick="startLevel('jumper')">Играть</button>
+                <button class="btn" data-level="jumper">Играть</button>
             </div>
 
             <div class="level-card">
                 <div class="level-title">🏭 Сборочный цех (2048)</div>
                 <div class="level-stats">Лучший счет: <span id="stat-2048">—</span></div>
-                <button class="btn" onclick="startLevel('factory-2048')">Играть</button>
+                <button class="btn" data-level="factory-2048">Играть</button>
             </div>
 
             <div class="level-card">
                 <div class="level-title">🧠 Квиз</div>
                 <div class="level-stats">Лучший результат: <span id="stat-quiz">—</span></div>
-                <button class="btn" onclick="startLevel('quiz')">Играть</button>
+                <button class="btn" data-level="quiz">Играть</button>
             </div>
         </div>
 
-        <button class="btn btn-secondary" onclick="resetAllStats()">Сбросить статистику</button>
+        <button class="btn btn-secondary" data-action="reset-stats">Сбросить статистику</button>
     </div>
 
 
@@ -70,9 +71,9 @@
         <p>Собери картинку (кликни на две клетки, чтобы поменять их местами)</p>
         <div id="puzzle-board"></div>
         <p id="puzzle-status"></p>
-        <button id="btn-next-2" class="btn hidden" onclick="startGame(2)">Далее →</button>
+        <button id="btn-next-2" class="btn hidden" data-action="start-game" data-level="2">Далее →</button>
 
-        <button class="btn btn-secondary" onclick="showLevels()">← К уровням</button>
+        <button class="btn btn-secondary" data-action="show-levels">← К уровням</button>
     </div>
 
     <!-- Экран 3: Джампер (Уровень 2) -->
@@ -87,7 +88,7 @@
             <!-- Счет справа -->
             <div><span id="doodle-score">0</span>/12</div>
     
-        <button class="btn btn-secondary" onclick="showLevels()">← К уровням</button>
+        <button class="btn btn-secondary" data-action="show-levels">← К уровням</button>
     </div>
 
                 <!-- Игровая зона -->
@@ -105,7 +106,7 @@
             </div>
 
             <!-- Стартовый экран -->
-            <div id="doodle-start-msg" onclick="startDoodleLoop()">
+            <div id="doodle-start-msg" data-action="start-doodle">
                 <p>Нажми, чтобы начать!</p>
                 <div class="tap-icon">👆</div>
                 <p style="font-size: 14px; color: #7f8c8d; margin-top: 20px;">
@@ -116,7 +117,7 @@
             <!-- Экран ПОРАЖЕНИЯ (скрыт) -->
             <div id="game-over-overlay" class="game-overlay">
                 <h3>Ой, упал! 😢</h3>
-                <button class="btn-restart" onclick="startDoodleLoop()">🔄 Попробовать снова</button>
+                <button class="btn-restart" data-action="start-doodle">🔄 Попробовать снова</button>
             </div>
 
             <!-- Экран ПОБЕДЫ (скрыт) -->
@@ -133,7 +134,7 @@
             </picture>
             </div>
 
-        <button id="btn-next-3" class="btn hidden" onclick="startGame(3)">Далее →</button>
+        <button id="btn-next-3" class="btn hidden" data-action="start-game" data-level="3">Далее →</button>
     </div>
 
     <!-- Экран 4: Игра 2048 (Уровень 3) -->
@@ -143,9 +144,9 @@
 
         <div class="game-2048-header">
             <div class="score-box">Счет: <span id="score-2048">0</span></div>
-            <button onclick="init2048()" style="font-size: 20px; background:none; border:none; cursor:pointer;">🔄</button>
+            <button data-action="init-2048" style="font-size: 20px; background:none; border:none; cursor:pointer;">🔄</button>
     
-        <button class="btn btn-secondary" onclick="showLevels()">← К уровням</button>
+        <button class="btn btn-secondary" data-action="show-levels">← К уровням</button>
     </div>
 
         <!-- Контейнер игры (relative) -->
@@ -158,7 +159,7 @@
             <div id="overlay-2048-gameover" class="game-overlay" style="border-radius: 10px;">
                 <h3>Цех переполнен! 😔</h3>
                 <p style="color: white; font-size: 14px;">Места для деталей не осталось.</p>
-                <button class="btn-restart" onclick="init2048()">🔄 Очистить линию</button>
+                <button class="btn-restart" data-action="init-2048">🔄 Очистить линию</button>
             </div>
 
             <!-- ОВЕРЛЕЙ ПОБЕДЫ -->
@@ -170,7 +171,7 @@
 
         <p class="instruction">Свайпай (листай) пальцем,<br>чтобы двигать детали</p>
 
-        <button id="btn-next-4" class="btn hidden" onclick="startGame(4)">Квиз →</button>
+        <button id="btn-next-4" class="btn hidden" data-action="start-game" data-level="4">Квиз →</button>
     </div>
 
     <!-- Экран 5: Квиз (Уровень 4) -->
@@ -181,7 +182,7 @@
             <div id="question-text">...</div>
             <div id="answers-block"></div>
     
-        <button class="btn btn-secondary" onclick="showLevels()">← К уровням</button>
+        <button class="btn btn-secondary" data-action="show-levels">← К уровням</button>
     </div>
     </div>
         <!-- Экран 5: Финал (Общий итог) -->
@@ -193,7 +194,7 @@
             <div class="score-row">
                 <span>🧩 Пазл:</span> <span id="res-l1">0</span>
         
-        <button class="btn btn-secondary" onclick="showLevels()">← К уровням</button>
+        <button class="btn btn-secondary" data-action="show-levels">← К уровням</button>
     </div>
             <div class="score-row">
                 <span>🏃 Джампер:</span> <span id="res-l2">0</span>
@@ -210,7 +211,7 @@
             </div>
         </div>
 
-        <button class="btn" onclick="closeApp()">💾 СОХРАНИТЬ РЕЗУЛЬТАТ</button>
+        <button class="btn" data-action="close-app">💾 СОХРАНИТЬ РЕЗУЛЬТАТ</button>
     </div>
     <script src="script.js"></script>
 </body>

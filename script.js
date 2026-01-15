@@ -173,67 +173,77 @@ function showFinalScreenFromStats() {
 }
 
 function sendStatsAndClose() {
-    const proceed = () => {
-        const payload = buildStatsPayload();
+    const payload = buildStatsPayload();
 
-        // В Telegram WebApp: отправляем данные и закрываем WebApp
-        if (tg?.sendData) {
-            try {
-                tg.sendData(JSON.stringify(payload));
-                // Закрываем, чтобы пользователь вернулся в Telegram и увидел сообщение бота
-                tg.close();
-                return;
-            } catch (e) {}
-        }
-
-        // В обычном браузере: скачиваем JSON
+    // В Telegram WebApp: отправляем данные и закрываем WebApp
+    if (tg?.sendData) {
         try {
-            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'apz_stats.json';
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
-            notify('Файл статистики сохранён ✅');
-        } catch (e) {
-            notify('Не удалось сохранить статистику 😕');
-        }
-    };
+            tg.sendData(JSON.stringify(payload));
+            // Закрываем, чтобы пользователь вернулся в Telegram и увидел сообщение бота
+            tg.close();
+            return;
+        } catch (e) {}
+    }
 
-    const warningMsg = 'Сейчас будет переход в Telegram для отображения статистики.\n' +
-        'Если хочешь продолжить играть — нажми «Отмена».\n\n' +
-        'Перейти к статистике?';
+    // В обычном браузере: скачиваем JSON
+    try {
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'apz_stats.json';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        notify('Файл статистики сохранён ✅');
+    } catch (e) {
+        notify('Не удалось сохранить статистику 😕');
+    }
+}
 
-    // В Telegram показываем нативный popup с кнопками
+// Подтверждение перед закрытием WebApp и переходом в Telegram к статистике.
+// Требование: при нажатии «Отмена» пользователь остаётся в WebApp и может продолжать играть.
+function confirmSendStatsAndClose() {
+    const msg =
+        'Сейчас будет переход в Telegram для отображения статистики.\n\n' +
+        'Если хотите продолжить играть — нажмите «Отмена».\n' +
+        'Чтобы открыть статистику — нажмите «К статистике».\n\n' +
+        'После перехода веб‑приложение будет закрыто.';
+
+    // Telegram WebApp: показываем системный popup с 2 кнопками.
     if (tg?.showPopup) {
-        tg.showPopup(
-            {
-                title: 'К статистике',
-                message: 'Сейчас будет переход в Telegram для отображения статистики.\n' +
-                    'Если хочешь продолжить играть — нажми «Отмена».',
-                buttons: [
-                    { id: 'cancel', type: 'cancel', text: 'Отмена' },
-                    { id: 'go', type: 'default', text: 'К статистике' }
-                ]
-            },
-            (btnId) => {
-                if (btnId === 'go') proceed();
-            }
-        );
-        return;
+        try {
+            tg.showPopup(
+                {
+                    message: msg,
+                    buttons: [
+                        { id: 'go', type: 'default', text: 'К статистике' },
+                        { id: 'cancel', type: 'cancel', text: 'Отмена' }
+                    ]
+                },
+                (btnId) => {
+                    if (btnId === 'go') sendStatsAndClose();
+                }
+            );
+            return;
+        } catch (e) {}
     }
 
-    // Фолбэк для браузера
-    if (typeof confirm === 'function') {
-        if (confirm(warningMsg)) proceed();
-        return;
-    }
+    // Фолбэк (браузер/не Telegram): стандартный confirm.
+    try {
+        if (typeof confirm === 'function') {
+            const ok = confirm(
+                'Сейчас будет переход к статистике.\n\n' +
+                'Нажмите OK, чтобы продолжить, или Cancel, чтобы вернуться в игру.'
+            );
+            if (ok) sendStatsAndClose();
+            return;
+        }
+    } catch (e) {}
 
-    // Если confirm недоступен — просто продолжаем
-    proceed();
+    // Если ни confirm ни popup недоступны — просто выполняем действие.
+    sendStatsAndClose();
 }
 
 function showScreen(screenId) {
@@ -1590,7 +1600,7 @@ window.addEventListener('DOMContentLoaded', () => {
         } else if (action === 'save-stats') {
             exportStats();
         } else if (action === 'final-send-stats') {
-            sendStatsAndClose();
+            confirmSendStatsAndClose();
         } else if (action === 'start-game') {
             const lvl = Number(el.dataset.level || 1);
             startGame(lvl);

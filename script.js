@@ -251,7 +251,7 @@ function showScreen(screenId) {
     const s = document.getElementById(screenId);
     if (s) s.classList.add('active');
 
-    const isLevelScreen = (screenId === 'screen-level1' || screenId === 'screen-level2' || screenId === 'screen-level3' || screenId === 'screen-level4');
+    const isLevelScreen = ['screen-level1','screen-level2','screen-level3','screen-level4'].includes(screenId);
 
     // Верхняя кнопка "К уровням":
     // - во время прохождения уровня: видна сверху
@@ -277,9 +277,10 @@ function showScreen(screenId) {
 function showLevels() {
     showScreen('screen-levels');
     renderLevelMenuStats();
-    // Защита от "тапа-сквозь": сразу после перехода в меню уровней
-    // первый клик может прилететь от открытия WebApp.
-    lockClicks(450);
+    // Защита от "тапа-сквозь": сразу после перехода в меню уровней.
+    // На некоторых Android/WebView "стартовый" тап прилетает с задержкой,
+    // поэтому держим блокировку чуть дольше.
+    lockClicks(900);
 }
 
 // При выходе из уровня важно остановить активные игровые циклы (особенно Jumper),
@@ -1591,6 +1592,12 @@ function lockClicks(ms = 600) {
     ignoreClickUntil = Date.now() + ms;
 }
 
+// Доп. защита от автозапуска уровней на Android/WebView.
+// Запуск уровня из меню разрешаем только после явного действия пользователя
+// (нажал "Выбрать уровень"). Это убирает случаи, когда Telegram "пробрасывает"
+// стартовый тап внутрь WebView и он попадает по одной из кнопок уровня.
+let levelLaunchArmed = false;
+
 // В некоторых WebView (в т.ч. Telegram) inline onclick может быть отключён политиками безопасности.
 // Поэтому для критичных кнопок дублируем обработчики через addEventListener.
 window.addEventListener('DOMContentLoaded', () => {
@@ -1614,6 +1621,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 e?.stopPropagation?.();
                 return;
             }
+            levelLaunchArmed = true;
             showLevels();
         };
         // Важно: только click. pointerup/touchend иногда срабатывают призрачно при открытии WebApp.
@@ -1640,6 +1648,15 @@ window.addEventListener('DOMContentLoaded', () => {
 
         // Запуск уровня из меню
         if (el.dataset.level && !el.dataset.action) {
+            // Запрещаем автозапуск: уровень можно запускать только когда реально открыт экран уровней
+            // и пользователь уже "вооружил" запуск кнопкой "Выбрать уровень".
+            const active = document.querySelector('.screen.active');
+            const onLevelsScreen = active && active.id === 'screen-levels';
+            if (!levelLaunchArmed || !onLevelsScreen) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
             startLevel(el.dataset.level);
             return;
         }

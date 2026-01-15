@@ -82,7 +82,11 @@ p {
 }
 
 .hidden {
-    display: none;
+    /*
+      Important: some UI blocks (e.g. .bottombar) define their own `display` later in the CSS.
+      Without `!important` the later rule wins and "hidden" elements may become visible.
+    */
+    display: none !important;
 }
 
 /* === Верхняя кнопка "К уровням" во время прохождения === */

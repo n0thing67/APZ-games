@@ -168,7 +168,7 @@ let puzzleSize = 3;
 let puzzleState = [];
 let selectedPieceNum = null;
 let puzzleSolved = false;
-functifunction initPuzzle(size = 3) {
+function initPuzzle(size = 3) {
     puzzleSize = size;
 
     // Заголовок/подсказка
@@ -220,7 +220,7 @@ function createPuzzleElements() {
         const correctRow = Math.floor(correctIndex / puzzleSize);
         const correctCol = correctIndex % puzzleSize;
 
-        div.style.backgroundImage = `url('${assetPath('board', 'jpg')}')`;
+        div.style.backgroundImage = `url('${assetPath('logo', 'jpg')}')`;
         div.style.backgroundSize = `${puzzleSize * 100}% ${puzzleSize * 100}%`;
 
         const x = (puzzleSize === 1) ? 0 : (correctCol / (puzzleSize - 1)) * 100;
@@ -360,7 +360,7 @@ function preloadPuzzleAssets() {
     // Для любого размера пазла используем одну картинку board.webp
     if (puzzleAssetsReady) return puzzleAssetsReady;
     const img = new Image();
-    img.src = assetPath('board', 'jpg');
+    img.src = assetPath('logo', 'jpg');
     puzzleAssetsReady = decodeImage(img).catch(() => {});
     return puzzleAssetsReady;
 }
@@ -1348,4 +1348,51 @@ function closeApp() {
 // Инициализация меню уровней
 window.addEventListener('load', () => {
     renderLevelMenuStats();
+});
+
+// В некоторых WebView (в т.ч. Telegram) inline onclick может быть отключён политиками безопасности.
+// Поэтому для критичных кнопок дублируем обработчики через addEventListener.
+window.addEventListener('DOMContentLoaded', () => {
+    const btnChoose = document.getElementById('btn-choose-level');
+    if (btnChoose) {
+        const go = () => showLevels();
+        btnChoose.addEventListener('click', go);
+        // На мобильных WebView иногда "click" срабатывает нестабильно — подстрахуемся.
+        btnChoose.addEventListener('pointerup', go);
+        btnChoose.addEventListener('touchend', go, { passive: true });
+    }
+
+    // Универсальные обработчики вместо inline onclick (Telegram/WebView может их блокировать)
+    const handleAction = (e) => {
+        const el = e.target.closest('[data-action], [data-level]');
+        if (!el) return;
+
+        // Запуск уровня из меню
+        if (el.dataset.level && !el.dataset.action) {
+            startLevel(el.dataset.level);
+            return;
+        }
+
+        const action = el.dataset.action;
+        if (!action) return;
+
+        if (action === 'show-levels') {
+            showLevels();
+        } else if (action === 'reset-stats') {
+            resetAllStats();
+        } else if (action === 'start-game') {
+            const lvl = Number(el.dataset.level || 1);
+            startGame(lvl);
+        } else if (action === 'start-doodle') {
+            startDoodleLoop();
+        } else if (action === 'init-2048') {
+            init2048();
+        } else if (action === 'close-app') {
+            closeApp();
+        }
+    };
+
+    // click + pointerup для надёжности
+    document.addEventListener('click', handleAction, true);
+    document.addEventListener('pointerup', handleAction, true);
 });

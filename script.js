@@ -608,7 +608,7 @@ const MOVE_SPEED = 5;
 
 // РАЗМЕРЫ
 const HERO_SIZE = 80;
-const PLATFORM_WIDTH = 80;
+const PLATFORM_WIDTH = 100;
 const PLATFORM_HEIGHT = 80;
 
 // --- Sprite cropping ---
@@ -1595,6 +1595,12 @@ window.addEventListener('DOMContentLoaded', () => {
     const handleAction = (e) => {
         const el = e.target.closest('[data-action], [data-level]');
         if (!el) return;
+
+        // На некоторых Android/WebView бывают "ghost" pointer/touch события при открытии экрана.
+        // Чтобы уровень не запускался сам, старт уровня разрешаем только по обычному click.
+        if (el.dataset.level && e.type !== 'click') {
+            return;
+        }
 
         // Запуск уровня из меню
         if (el.dataset.level && !el.dataset.action) {

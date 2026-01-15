@@ -57,7 +57,8 @@ p {
        the visible area. Make each screen scrollable within itself.
     */
     /* 100dvh корректнее для мобильных браузеров/WebView с динамической адресной строкой */
-    max-height: calc(100dvh - 40px);
+    max-height: calc(100vh - 40px); /* fallback для Android WebView */
+    max-height: calc(100dvh - 40px); /* предпочтительно на современных браузерах */
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     touch-action: pan-y;
@@ -66,6 +67,30 @@ p {
 .screen.active {
     display: block;
     animation: fadeIn 0.5s;
+}
+
+/* На мобильных важно, чтобы кнопки на экране ФИНИШ всегда были в зоне видимости.
+   Делаем экран финала flex-колонкой и фиксируем панель кнопок "прилипшей" снизу
+   внутри прокручиваемого экрана. */
+#screen-final.screen.active {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding-bottom: 70px; /* запас под нижние панели на мобильных */
+}
+
+#final-actions {
+    position: sticky;
+    bottom: 0;
+    padding: 12px 0 4px;
+    background-color: rgba(44, 62, 80, 0.92);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 30; /* выше .bottombar (z-index:20) */
+}
+
+@media (max-width: 520px) {
+    .final-score-box { margin: 16px 0; padding: 16px; }
 }
 
 @keyframes fadeIn {

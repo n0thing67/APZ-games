@@ -11,6 +11,11 @@
 </head>
 <body>
 
+    <!-- Глобальная верхняя кнопка назад (видна во время прохождения уровней) -->
+    <div id="global-topbar" class="topbar hidden">
+        <button class="topbar-btn" type="button" data-action="show-levels">← К уровням</button>
+    </div>
+
     <!-- Экран 1: Приветствие -->
     <div id="screen-welcome" class="screen active">
         <h1>🏭 АПЗ КВЕСТ</h1>
@@ -71,8 +76,6 @@
         <p>Собери картинку (кликни на две клетки, чтобы поменять их местами)</p>
         <div id="puzzle-board"></div>
         <p id="puzzle-status"></p>
-        <button id="btn-next-2" class="btn hidden" data-action="start-game" data-level="2">Далее →</button>
-
         <button class="btn btn-secondary" data-action="show-levels">← К уровням</button>
     </div>
 
@@ -134,7 +137,8 @@
             </picture>
             </div>
 
-        <button id="btn-next-3" class="btn hidden" data-action="start-game" data-level="3">Далее →</button>
+        <!-- После прохождения уровня — только возврат к уровням (кнопка вверху + эта снизу) -->
+        <button class="btn btn-secondary" data-action="show-levels">← К уровням</button>
     </div>
 
     <!-- Экран 4: Игра 2048 (Уровень 3) -->
@@ -171,7 +175,8 @@
 
         <p class="instruction">Свайпай (листай) пальцем,<br>чтобы двигать детали</p>
 
-        <button id="btn-next-4" class="btn hidden" data-action="start-game" data-level="4">Квиз →</button>
+        <!-- После прохождения уровня — только возврат к уровням (кнопка вверху) -->
+        <button class="btn btn-secondary" data-action="show-levels">← К уровням</button>
     </div>
 
     <!-- Экран 5: Квиз (Уровень 4) -->

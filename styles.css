@@ -37,6 +37,15 @@ p {
     max-width: 400px;
     padding: 20px;
     box-sizing: border-box;
+
+    /* Mobile/WebView safety:
+       In Telegram WebView the viewport height is fixed and the body is vertically centered.
+       When content becomes taller (e.g., FINISH stats list), bottom buttons may fall below
+       the visible area. Make each screen scrollable within itself.
+    */
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .screen.active {
@@ -751,3 +760,19 @@ hr {
     background-image: url('assets/board.webp');
 }
 
+
+
+/* Глобальная нижняя кнопка "К уровням" (видна только во время прохождения уровней) */
+.bottombar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 10px;
+    display: flex;
+    justify-content: center;
+    z-index: 20;
+    pointer-events: none; /* кликабельна только кнопка */
+}
+.bottombar button {
+    pointer-events: auto;
+}

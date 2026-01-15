@@ -490,7 +490,7 @@ function createPuzzleElements() {
         const correctRow = Math.floor(correctIndex / puzzleSize);
         const correctCol = correctIndex % puzzleSize;
 
-        div.style.backgroundImage = `url('${assetPath('board', 'jpg')}')`;
+        div.style.backgroundImage = `url('${assetPath('logo', 'jpg')}')`;
         div.style.backgroundSize = `${puzzleSize * 100}% ${puzzleSize * 100}%`;
 
         const x = (puzzleSize === 1) ? 0 : (correctCol / (puzzleSize - 1)) * 100;
@@ -628,7 +628,7 @@ function preloadPuzzleAssets() {
     // Для любого размера пазла используем одну картинку board.webp
     if (puzzleAssetsReady) return puzzleAssetsReady;
     const img = new Image();
-    img.src = assetPath('board', 'jpg');
+    img.src = assetPath('logo', 'jpg');
     puzzleAssetsReady = decodeImage(img).catch(() => {});
     return puzzleAssetsReady;
 }
@@ -671,6 +671,8 @@ let scoreEl;
 let timerEl;
 let gameActive = false;
 let gameStartTime = 0;
+// PERF: не обновляем текст таймера каждый кадр (лишние reflow/paint на мобилках)
+let lastTimerSecond = -1;
 
 // Чтобы не навешивать обработчики по 5 раз при повторном заходе на уровень
 let doodleControlsBound = false;
@@ -904,6 +906,7 @@ function startDoodleLoop() {
     if (touchRAF) { cancelAnimationFrame(touchRAF); touchRAF = 0; }
 
     gameStartTime = Date.now();
+    lastTimerSecond = -1;
     levelStartTime = Date.now();
     update();
 }
@@ -955,9 +958,13 @@ function update() {
     if (!gameActive) return;
     const now = Date.now();
     const elapsed = Math.floor((now - gameStartTime) / 1000);
-    const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
-    const seconds = (elapsed % 60).toString().padStart(2, '0');
-    timerEl.textContent = `⏱ ${minutes}:${seconds}`;
+    // Обновляем DOM только при смене секунды
+    if (elapsed !== lastTimerSecond) {
+        lastTimerSecond = elapsed;
+        const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
+        const seconds = (elapsed % 60).toString().padStart(2, '0');
+        timerEl.textContent = `⏱ ${minutes}:${seconds}`;
+    }
 
     if (keys.left) player.vx = -MOVE_SPEED; else if (keys.right) player.vx = MOVE_SPEED; else player.vx = 0;
     player.x += player.vx; player.vy += GRAVITY; player.y += player.vy;

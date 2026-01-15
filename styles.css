@@ -14,6 +14,19 @@ body {
     -webkit-tap-highlight-color: transparent;
 }
 
+/* На мобильных WebView (Telegram Android/iOS) вертикальное центрирование body часто
+   приводит к тому, что нижние элементы (кнопки на ФИНИШ) оказываются за пределами
+   видимой области. На узких/низких экранах прижимаем контент к верху и даём отступы
+   сверху/снизу, чтобы кнопки гарантированно попадали в область прокрутки. */
+@media (max-width: 520px), (max-height: 740px) {
+    body {
+        justify-content: flex-start;
+        padding-top: 18px;
+        padding-bottom: 90px; /* место под fixed нижнюю панель, если она появится */
+        min-height: 100dvh;
+    }
+}
+
 /* PERF: blur/backdrop-filter очень дорогой на мобилках (особенно iOS).
    Во время игры выключаем его, чтобы поднять FPS. */
 #doodle-container.game-running .doodle-control {
@@ -43,9 +56,11 @@ p {
        When content becomes taller (e.g., FINISH stats list), bottom buttons may fall below
        the visible area. Make each screen scrollable within itself.
     */
-    max-height: calc(100vh - 40px);
+    /* 100dvh корректнее для мобильных браузеров/WebView с динамической адресной строкой */
+    max-height: calc(100dvh - 40px);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
 }
 
 .screen.active {

@@ -16,6 +16,12 @@
         <button class="topbar-btn" type="button" data-action="show-levels">← К уровням</button>
     </div>
 
+    <!-- Глобальная нижняя кнопка назад (появляется только во время прохождения уровней) -->
+    <div id="global-bottombar" class="bottombar hidden">
+        <button class="btn btn-secondary" type="button" data-action="show-levels">← К уровням</button>
+    </div>
+
+
     <!-- Экран 1: Приветствие -->
     <div id="screen-welcome" class="screen active">
         <h1>🏭 АПЗ КВЕСТ</h1>
@@ -66,7 +72,10 @@
             </div>
         </div>
 
-        <button class="btn btn-secondary" data-action="reset-stats">Сбросить статистику</button>
+        <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:12px;">
+            <button class="btn btn-secondary" data-action="reset-stats">Сбросить статистику</button>
+            <button class="btn" data-action="save-stats">Сохранить статистику</button>
+        </div>
     </div>
 
 
@@ -76,7 +85,6 @@
         <p>Собери картинку (кликни на две клетки, чтобы поменять их местами)</p>
         <div id="puzzle-board"></div>
         <p id="puzzle-status"></p>
-        <button class="btn btn-secondary" data-action="show-levels">← К уровням</button>
     </div>
 
     <!-- Экран 3: Джампер (Уровень 2) -->
@@ -91,7 +99,6 @@
             <!-- Счет справа -->
             <div><span id="doodle-score">0</span>/12</div>
     
-        <button class="btn btn-secondary" data-action="show-levels">← К уровням</button>
     </div>
 
                 <!-- Игровая зона -->
@@ -138,7 +145,6 @@
             </div>
 
         <!-- После прохождения уровня — только возврат к уровням (кнопка вверху + эта снизу) -->
-        <button class="btn btn-secondary" data-action="show-levels">← К уровням</button>
     </div>
 
     <!-- Экран 4: Игра 2048 (Уровень 3) -->
@@ -150,7 +156,6 @@
             <div class="score-box">Счет: <span id="score-2048">0</span></div>
             <button data-action="init-2048" style="font-size: 20px; background:none; border:none; cursor:pointer;">🔄</button>
     
-        <button class="btn btn-secondary" data-action="show-levels">← К уровням</button>
     </div>
 
         <!-- Контейнер игры (relative) -->
@@ -176,7 +181,6 @@
         <p class="instruction">Свайпай (листай) пальцем,<br>чтобы двигать детали</p>
 
         <!-- После прохождения уровня — только возврат к уровням (кнопка вверху) -->
-        <button class="btn btn-secondary" data-action="show-levels">← К уровням</button>
     </div>
 
     <!-- Экран 5: Квиз (Уровень 4) -->
@@ -186,11 +190,10 @@
         <div id="quiz-container">
             <div id="question-text">...</div>
             <div id="answers-block"></div>
-    
-        <button class="btn btn-secondary" data-action="show-levels">← К уровням</button>
+        </div>
     </div>
-    </div>
-        <!-- Экран 5: Финал (Общий итог) -->
+
+<!-- Экран 5: Финал (Общий итог) -->
     <div id="screen-final" class="screen">
         <h1>🎉 ФИНИШ!</h1>
         <p>Твоя смена на заводе окончена.</p>
@@ -199,7 +202,6 @@
             <div class="score-row">
                 <span>🧩 Пазл:</span> <span id="res-l1">0</span>
         
-        <button class="btn btn-secondary" data-action="show-levels">← К уровням</button>
     </div>
             <div class="score-row">
                 <span>🏃 Джампер:</span> <span id="res-l2">0</span>
@@ -216,7 +218,7 @@
             </div>
         </div>
 
-        <button class="btn" data-action="close-app">💾 СОХРАНИТЬ РЕЗУЛЬТАТ</button>
+        <!-- Кнопку "Сохранить статистику" переносим в меню уровней -->
     </div>
     <script src="script.js"></script>
 </body>

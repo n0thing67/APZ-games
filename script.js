@@ -608,7 +608,7 @@ const MOVE_SPEED = 5;
 
 // РАЗМЕРЫ
 const HERO_SIZE = 80;
-const PLATFORM_WIDTH = 100;
+const PLATFORM_WIDTH = 80;
 const PLATFORM_HEIGHT = 80;
 
 // --- Sprite cropping ---

@@ -54,6 +54,29 @@ const SFX_FILES = {
 const SFX_POOL_SIZE = 4;
 const sfxPool = new Map();
 let sfxUnlocked = false;
+const SFX_MUTED_KEY = 'apzSfxMutedV1';
+let sfxMuted = false;
+
+try {
+    sfxMuted = localStorage.getItem(SFX_MUTED_KEY) === '1';
+} catch (e) {
+    sfxMuted = false;
+}
+
+function updateSoundToggleUI() {
+    const btn = document.getElementById('btn-sound-toggle');
+    if (!btn) return;
+    btn.textContent = sfxMuted ? '🔇 Звук' : '🔊 Звук';
+    btn.setAttribute('aria-label', sfxMuted ? 'Звук выключен' : 'Звук включен');
+}
+
+function setSfxMuted(v) {
+    sfxMuted = !!v;
+    try {
+        localStorage.setItem(SFX_MUTED_KEY, sfxMuted ? '1' : '0');
+    } catch (e) {}
+    updateSoundToggleUI();
+}
 
 function initSfxPool() {
     // Создаём аудио-объекты один раз
@@ -88,6 +111,7 @@ function unlockSfxOnce() {
 }
 
 function playSfx(key) {
+    if (sfxMuted) return;
     const pack = sfxPool.get(key);
     if (!pack) return;
     const a = pack.arr[pack.idx];
@@ -386,6 +410,13 @@ function showScreen(screenId) {
     if (bottombar) {
         const showBottom = (isLevelScreen && levelCompleted);
         bottombar.classList.toggle('hidden', !showBottom);
+    }
+
+    // Кнопка звука показывается только на экранах меню (приветствие + выбор уровней)
+    const soundBtn = document.getElementById('btn-sound-toggle');
+    if (soundBtn) {
+        const showSound = (screenId === 'screen-welcome' || screenId === 'screen-levels');
+        soundBtn.classList.toggle('hidden', !showSound);
     }
 }
 
@@ -1169,7 +1200,7 @@ function draw() {
             ctx.fillRect(p.x, p.y, p.width, p.height);
         }
 
-        if (p.bonus === 'spring') { const bx = p.x + (PLATFORM_WIDTH - SPRING_WIDTH) / 2; const by = p.y - SPRING_HEIGHT + 46; drawBonus(imgSpring, bx, by, SPRING_WIDTH, SPRING_HEIGHT); }
+        if (p.bonus === 'spring') { const bx = p.x + (PLATFORM_WIDTH - SPRING_WIDTH) / 2; const by = p.y - SPRING_HEIGHT + 40; drawBonus(imgSpring, bx, by, SPRING_WIDTH, SPRING_HEIGHT); }
         else if (p.bonus === 'propeller') { const bx = p.x + (PLATFORM_WIDTH - PROPELLER_WIDTH) / 2; const by = p.y - PROPELLER_HEIGHT + 15; drawBonus(imgPropeller, bx, by, PROPELLER_WIDTH, PROPELLER_HEIGHT); }
         else if (p.bonus === 'jetpack') { const bx = p.x + (PLATFORM_WIDTH - JETPACK_WIDTH) / 2; const by = p.y - JETPACK_HEIGHT + 20; drawBonus(imgJetpack, bx, by, JETPACK_WIDTH, JETPACK_HEIGHT); }
     }
@@ -1775,7 +1806,21 @@ window.addEventListener('DOMContentLoaded', () => {
         levelCompleted = false;
         currentLevelId = null;
         showScreen('screen-welcome');
+        updateSoundToggleUI();
     } catch (e) {}
+
+    // Переключатель звука (в меню)
+    const btnSound = document.getElementById('btn-sound-toggle');
+    if (btnSound) {
+        btnSound.addEventListener('click', (e) => {
+            // Не даём глобальному обработчику кнопок проигрывать "menu-click" поверх переключения
+            e.preventDefault();
+            e.stopPropagation();
+            // На всякий случай — разлочим звук в рамках жеста пользователя
+            unlockSfxOnce();
+            setSfxMuted(!sfxMuted);
+        });
+    }
 
     const btnChoose = document.getElementById('btn-choose-level');
     if (btnChoose) {

@@ -21,6 +21,9 @@
         <button class="btn btn-secondary" type="button" data-action="show-levels">← К уровням</button>
     </div>
 
+    <!-- Переключатель звука (показывается только в меню) -->
+    <button id="btn-sound-toggle" class="sound-toggle" type="button" aria-label="Звук: вкл/выкл">🔊 Звук</button>
+
 
     <!-- Экран 1: Приветствие -->
     <div id="screen-welcome" class="screen active">
@@ -36,37 +39,37 @@
 
         <div class="level-list">
             <div class="level-card">
-                <div class="level-title">🧩 Логотип 2×2 (4 клетки)</div>
+                <div class="level-title">🧩 Цех сборки логотипа 2×2 (4 клетки)</div>
                 <div class="level-stats">Лучшее время: <span id="stat-puzzle-2x2">—</span></div>
                 <button class="btn" data-level="puzzle-2x2">Играть</button>
             </div>
 
             <div class="level-card">
-                <div class="level-title">🧩 Логотип 3×3 (9 клеток)</div>
+                <div class="level-title">🧩 Цех сборки логотипа 3×3 (9 клеток)</div>
                 <div class="level-stats">Лучшее время: <span id="stat-puzzle-3x3">—</span></div>
                 <button class="btn" data-level="puzzle-3x3">Играть</button>
             </div>
 
             <div class="level-card">
-                <div class="level-title">🧩 Логотип 4×4 (16 клеток)</div>
+                <div class="level-title">🧩 Цех сборки логотипа 4×4 (16 клеток)</div>
                 <div class="level-stats">Лучшее время: <span id="stat-puzzle-4x4">—</span></div>
                 <button class="btn" data-level="puzzle-4x4">Играть</button>
             </div>
 
             <div class="level-card">
-                <div class="level-title">🏃 Jumper</div>
+                <div class="level-title">🏃 Цех проверки ловкости</div>
                 <div class="level-stats">Лучший счет: <span id="stat-jumper">—</span></div>
                 <button class="btn" data-level="jumper">Играть</button>
             </div>
 
             <div class="level-card">
-                <div class="level-title">🏭 Сборочный цех (2048)</div>
+                <div class="level-title">🏭 Цех сборки деталей (2048)</div>
                 <div class="level-stats">Лучший счет: <span id="stat-2048">—</span></div>
                 <button class="btn" data-level="factory-2048">Играть</button>
             </div>
 
             <div class="level-card">
-                <div class="level-title">🧠 Квиз</div>
+                <div class="level-title">🧠 Цех умных решений</div>
                 <div class="level-stats">Лучший результат: <span id="stat-quiz">—</span></div>
                 <button class="btn" data-level="quiz">Играть</button>
             </div>
@@ -81,7 +84,7 @@
 
     <!-- Экран 2: Пазл (Уровень 1) -->
     <div id="screen-level1" class="screen">
-        <h2>🧩 Уровень 1: Логотип</h2>
+        <h2>🧩 Цех сборки логотипа</h2>
         <p>Собери картинку (кликни на две клетки, чтобы поменять их местами)</p>
         <div id="puzzle-board"></div>
         <p id="puzzle-status"></p>
@@ -149,7 +152,7 @@
 
     <!-- Экран 4: Игра 2048 (Уровень 3) -->
     <div id="screen-level3" class="screen">
-        <h2>🏭 Сборочный цех</h2>
+        <h2>🏭 Цех сборки деталей</h2>
         <p>Соединяй детали, чтобы собрать <b>Прибор (256)</b>!</p>
 
         <div class="game-2048-header">
@@ -185,7 +188,7 @@
 
     <!-- Экран 5: Квиз (Уровень 4) -->
     <div id="screen-level4" class="screen">
-        <h2>🧠 Уровень 4: Знания</h2>
+        <h2>🧠 Цех умных решений</h2>
         <div id="quiz-progress">Вопрос 1</div>
         <div id="quiz-container">
             <div id="question-text">...</div>
@@ -215,4 +218,3 @@
     <script src="script.js"></script>
 </body>
 </html>
-

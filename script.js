@@ -15,6 +15,93 @@ function assetPath(name, fallbackExt) {
     return `assets/${name}.${USE_WEBP ? 'webp' : fallbackExt}`;
 }
 
+// ==========================================
+// SFX (звуки)
+// ==========================================
+// Все звуки лежат в папке webapp/sound/
+// Важно: в мобильных браузерах звук начинает играть только после первого действия пользователя.
+
+const SFX_BASE = 'sound/';
+
+// Имена ключей — то, что будем вызывать в коде: playSfx('menu-click')
+const SFX_FILES = {
+    'menu-click': 'menu-click.mp3',
+
+    // Puzzle
+    'puzzle-click': 'puzzle-click.mp3',
+    'puzzle-slide': 'puzzle-slide.mp3',
+
+    // 2048
+    '2048-plastic': '2048-plastic.mp3',
+    '2048-slide': '2048-slide.mp3',
+    '2048-pop': '2048-pop.mp3',
+
+    // Quiz
+    'answer-correct': 'answer-correct.mp3',
+    'answer-uncorrect': 'answer-uncorrect.mp3',
+
+    // Jumper
+    'jumper-jump': 'jumper-jump.mp3',
+    'jumper-bounce': 'jumper-bounce.mp3',
+    'jumper-propeller': 'jumper-propeller.mp3',
+    'jumper-jetpack': 'jumper-jetpack.mp3',
+    // В проекте исторически был файл "jimper-win.mp3" — оставили совместимость
+    'jumper-win': 'jumper-win.mp3',
+    'jumper-loss': 'jumper-loss.mp3'
+};
+
+// Небольшие пулы, чтобы можно было быстро проигрывать один и тот же звук подряд
+const SFX_POOL_SIZE = 4;
+const sfxPool = new Map();
+let sfxUnlocked = false;
+
+function initSfxPool() {
+    // Создаём аудио-объекты один раз
+    for (const [key, file] of Object.entries(SFX_FILES)) {
+        const arr = [];
+        for (let i = 0; i < SFX_POOL_SIZE; i++) {
+            const a = new Audio(SFX_BASE + file);
+            a.preload = 'auto';
+            a.volume = 0.9;
+            arr.push(a);
+        }
+        sfxPool.set(key, { arr, idx: 0 });
+    }
+}
+
+function unlockSfxOnce() {
+    if (sfxUnlocked) return;
+    sfxUnlocked = true;
+    // Попытка "разлочить" звук на iOS/Android WebView
+    try {
+        for (const { arr } of sfxPool.values()) {
+            const a = arr[0];
+            // Быстрый play/pause в рамках пользовательского жеста
+            a.muted = true;
+            const p = a.play();
+            if (p && p.catch) p.catch(() => {});
+            a.pause();
+            a.currentTime = 0;
+            a.muted = false;
+        }
+    } catch (e) {}
+}
+
+function playSfx(key) {
+    const pack = sfxPool.get(key);
+    if (!pack) return;
+    const a = pack.arr[pack.idx];
+    pack.idx = (pack.idx + 1) % pack.arr.length;
+
+    try {
+        a.currentTime = 0;
+        const p = a.play();
+        if (p && p.catch) p.catch(() => {});
+    } catch (e) {}
+}
+
+initSfxPool();
+
 
 // ==========================================
 // УРОВНИ + СТАТИСТИКА (по каждому уровню отдельно)
@@ -521,6 +608,7 @@ function updatePuzzlePositions() {
 
 function handlePieceClick(clickedNum) {
     if (puzzleSolved) return;
+    playSfx('puzzle-click');
     if (selectedPieceNum === null) {
         selectedPieceNum = clickedNum;
         updatePuzzlePositions();
@@ -530,6 +618,7 @@ function handlePieceClick(clickedNum) {
             const index2 = puzzleState.indexOf(clickedNum);
             [puzzleState[index1], puzzleState[index2]] = [puzzleState[index2], puzzleState[index1]];
             selectedPieceNum = null;
+            playSfx('puzzle-slide');
             updatePuzzlePositions();
         } else {
             selectedPieceNum = null;
@@ -1015,10 +1104,20 @@ function update() {
         for (let i = 0; i < platforms.length; i++) {
             const p = platforms[i];
             if (px2 > p.x && px1 < p.x + p.width && pyBottom > p.y && pyBottom < p.y + p.height + vy + 2) {
-                if (p.bonus === 'spring') player.vy = SPRING_FORCE;
-                else if (p.bonus === 'propeller') { player.vy = PROPELLER_FORCE; player.equipment = 'propeller'; }
-                else if (p.bonus === 'jetpack') { player.vy = JETPACK_FORCE; player.equipment = 'jetpack'; }
+                if (p.bonus === 'spring') {
+                    playSfx('jumper-bounce');
+                    player.vy = SPRING_FORCE;
+                }
+                else if (p.bonus === 'propeller') {
+                    playSfx('jumper-propeller');
+                    player.vy = PROPELLER_FORCE; player.equipment = 'propeller';
+                }
+                else if (p.bonus === 'jetpack') {
+                    playSfx('jumper-jetpack');
+                    player.vy = JETPACK_FORCE; player.equipment = 'jetpack';
+                }
                 else {
+                    playSfx('jumper-jump');
                     player.vy = JUMP_FORCE;
                     if (player.equipment && player.vy > -10) player.equipment = null;
                 }
@@ -1119,11 +1218,16 @@ function draw() {
     }
 }
 function drawBonus(img, x, y, w, h) { if (img.complete && img.naturalWidth !== 0) ctx.drawImage(img, x, y, w, h); else { ctx.fillStyle = 'red'; ctx.fillRect(x, y, w, h); } }
-function showGameOver() { gameActive = false; cancelAnimationFrame(doodleGameLoop);
+function showGameOver() {
+    playSfx('jumper-loss');
+    gameActive = false;
+    cancelAnimationFrame(doodleGameLoop);
     setDoodleControlsState('hidden');
-    document.getElementById('game-over-overlay').classList.add('visible'); }
+    document.getElementById('game-over-overlay').classList.add('visible');
+}
 
 function showVictoryLevel2() {
+    playSfx('jumper-win');
     gameActive = false;
     cancelAnimationFrame(doodleGameLoop);
     setDoodleControlsState(false);
@@ -1274,6 +1378,7 @@ function addRandomTile() {
         const rand = emptyCells[Math.floor(Math.random() * emptyCells.length)];
         const val = Math.random() < 0.9 ? 2 : 4;
         createTile(rand.r, rand.c, val);
+        playSfx('2048-plastic');
     }
 }
 
@@ -1298,6 +1403,7 @@ function handle2048Input(e) {
 
 function moveTiles(dr, dc) {
     let moved = false;
+    let mergedThisMove = false;
 
     // Сброс флагов слияния
     for(let r=0; r<SIZE; r++)
@@ -1346,8 +1452,10 @@ function moveTiles(dr, dc) {
 
                     targetTile.val *= 2;
                     targetTile.merged = true;
+                    mergedThisMove = true;
                     score2048 += targetTile.val;
                     scoreEl2048.textContent = score2048;
+                    mergedThisMove = true;
 
                     // Удаляем старую плитку после анимации
                     setTimeout(() => {
@@ -1362,6 +1470,9 @@ function moveTiles(dr, dc) {
     }
 
     if (moved) {
+        // Звук хода (сначала скольжение, затем при наличии — pop за объединение)
+        playSfx('2048-slide');
+        if (mergedThisMove) playSfx('2048-pop');
         setTimeout(() => {
             addRandomTile();
             check2048Status();
@@ -1553,11 +1664,13 @@ function handleAnswerClick(btn, index, correctIndex) {
     let timeSpent = (Date.now() - questionStartTime) / 1000;
 
     if (index === correctIndex) {
+        playSfx('answer-correct');
         btn.classList.add('correct');
         btn.innerHTML += ' ✅';
         let speedBonus = Math.max(0, 100 - timeSpent * 10);
         levelScores[4] += (200 + Math.floor(speedBonus));
     } else {
+        playSfx('answer-uncorrect');
         btn.classList.add('wrong');
         btn.innerHTML += ' ❌';
         const buttons = document.querySelectorAll('.answer-btn');
@@ -1637,6 +1750,22 @@ let levelLaunchArmed = false;
 // В некоторых WebView (в т.ч. Telegram) inline onclick может быть отключён политиками безопасности.
 // Поэтому для критичных кнопок дублируем обработчики через addEventListener.
 window.addEventListener('DOMContentLoaded', () => {
+    // Разблокируем звук на первом пользовательском жесте
+    // (иначе в Telegram WebView/iOS Safari многие звуки не запускаются)
+    document.addEventListener('pointerdown', unlockSfxOnce, { once: true, capture: true });
+    document.addEventListener('touchstart', unlockSfxOnce, { once: true, capture: true });
+
+    // Глобальный "menu-click" для кнопок интерфейса.
+    // Исключаем кнопки-ответы квиза — у них отдельные звуки correct/uncorrect.
+    document.addEventListener('click', (ev) => {
+        const btn = ev.target?.closest?.('button');
+        if (!btn) return;
+        if (btn.classList?.contains('answer-btn')) return;
+        // защита от призрачных кликов (Android/WebView)
+        if (Date.now() < ignoreClickUntil) return;
+        playSfx('menu-click');
+    }, true);
+
     // Глушим клики сразу после загрузки WebView
     lockClicks(900);
     // На некоторых WebView (особенно Android) первый рендер может привести к тому,

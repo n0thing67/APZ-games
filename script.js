@@ -754,7 +754,7 @@ function preloadPuzzleAssets() {
 }
 
 
-const TOTAL_ITEMS = 12;
+const TOTAL_ITEMS = 10;
 const GRAVITY = 0.25;
 const JUMP_FORCE = -9;
 const MOVE_SPEED = 5;
@@ -1114,7 +1114,7 @@ function update() {
             else if (r < 0.14) p.bonus = 'spring';
 
             // Спавним деталь ниже при респавне
-            if (p.bonus === null && Math.random() < 0.15) {
+            if (p.bonus === null && Math.random() < 0.18) {
                 items.push({ x: p.x + p.width / 2, y: p.y - 10, collected: false });
             }
         }

@@ -139,6 +139,45 @@ const LEVEL_DEFS = {
     'quiz':        { title: 'Квиз',          type: 'quiz',   stat: 'score' }
 };
 
+// ==========================================
+// Доступность уровней (админ может временно выключать)
+// ==========================================
+let LEVEL_AVAIL = null; // { level_key: true/false }
+
+async function loadLevelAvailability() {
+    try {
+        const res = await fetch('/api/levels', { cache: 'no-store' });
+        const data = await res.json();
+        LEVEL_AVAIL = data && data.levels ? data.levels : null;
+    } catch (e) {
+        LEVEL_AVAIL = null;
+    }
+}
+
+function isLevelActive(levelKey) {
+    if (!LEVEL_AVAIL) return true; // если сервер недоступен/не настроен — ничего не блокируем
+    if (LEVEL_AVAIL[levelKey] === undefined) return true;
+    return !!LEVEL_AVAIL[levelKey];
+}
+
+function applyLevelAvailabilityToMenu() {
+    try {
+        document.querySelectorAll('[data-level]').forEach((btn) => {
+            const key = btn.dataset.level;
+            const active = isLevelActive(key);
+            btn.disabled = !active;
+            btn.style.opacity = active ? '' : '0.55';
+            // Подпись на кнопке
+            if (!active) {
+                btn.dataset._origText = btn.dataset._origText || btn.textContent;
+                btn.textContent = 'Недоступно';
+            } else if (btn.dataset._origText) {
+                btn.textContent = btn.dataset._origText;
+            }
+        });
+    } catch (e) {}
+}
+
 const STATS_KEY = 'apzQuestStatsV1';
 
 // ==========================================
@@ -424,6 +463,7 @@ function showScreen(screenId) {
 function showLevels() {
     showScreen('screen-levels');
     renderLevelMenuStats();
+    loadLevelAvailability().then(() => applyLevelAvailabilityToMenu());
     // Защита от "тапа-сквозь": сразу после перехода в меню уровней.
     // На некоторых Android/WebView "стартовый" тап прилетает с задержкой,
     // поэтому держим блокировку чуть дольше.
@@ -479,6 +519,13 @@ let levelCompleted = false; // Для переключения кнопок "К 
 function startLevel(levelId) {
     // защита от старых вызовов
     if (typeof levelId === 'number') return startGame(levelId);
+
+    if (!isLevelActive(levelId)) {
+        // На всякий случай обновим меню (если админ выключил уровень прямо сейчас)
+        applyLevelAvailabilityToMenu();
+        showLevels();
+        return;
+    }
 
     currentLevelId = levelId;
     levelStartTime = Date.now();
@@ -1799,6 +1846,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Глушим клики сразу после загрузки WebView
     lockClicks(900);
+
+    // Подтягиваем доступность уровней (админ мог отключить некоторые)
+    // и применяем к меню.
+    loadLevelAvailability().then(() => {
+        applyLevelAvailabilityToMenu();
+    });
     // На некоторых WebView (особенно Android) первый рендер может привести к тому,
     // что глобальные кнопки остаются видимыми. Принудительно синхронизируем UI:
     // на приветственном экране кнопка "К уровням" показываться не должна.
@@ -1897,3 +1950,4 @@ window.addEventListener('DOMContentLoaded', () => {
     // click + pointerup для надёжности
     document.addEventListener('click', handleAction, true);
 });
+

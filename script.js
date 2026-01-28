@@ -1582,7 +1582,7 @@ function checkPuzzleWin() {
     setTimeout(() => {
         // "Далее" убрано — пользователь сам выбирает следующий уровень в меню.
         showAfterLevel(currentLevelId);
-    }, 1200);
+    }, 2000);
 }
 
 
@@ -2849,4 +2849,5 @@ window.addEventListener('DOMContentLoaded', () => {
     // click + pointerup для надёжности
     document.addEventListener('click', handleAction, true);
 });
+
 

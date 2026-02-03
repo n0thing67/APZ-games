@@ -815,11 +815,28 @@ async function syncAptitudeWithServer() {
         if (!res.ok) return;
 
         const data = await res.json();
+
+        // 1) Глобальный сброс статистики админом:
+        // если на сервере изменилась метка сброса — очищаем локальные данные (очки, рекомендации, результаты).
+        const serverReset = String(data?.reset_token ?? '0');
+        let localReset = '0';
+        try { localReset = String(localStorage.getItem(RESET_TOKEN_KEY) ?? '0'); } catch (e) { localReset = '0'; }
+
+        if (serverReset && serverReset !== localReset) {
+            try { localStorage.removeItem(STATS_KEY); } catch (e) {}
+            try { localStorage.removeItem(APTITUDE_STORAGE_KEY); } catch (e) {}
+            try { localStorage.setItem(RESET_TOKEN_KEY, serverReset); } catch (e) {}
+            // сбрасываем in-memory статы, чтобы сразу обновились очки/рекомендации в интерфейсе
+            try { stats = {}; } catch (e) {}
+            try { clearAptitudeMenuRecommendations(); } catch (e) {}
+        }
+
+        // 2) Частный случай: если пользователя удалили/сбросили и на сервере нет результата профтеста —
+        // локальный localStorage может «сохранить» старый результат и показывать его после повторной регистрации.
         const serverTop = data?.user?.aptitude_top;
 
         if (!data?.exists || !serverTop) {
-            localStorage.removeItem(APTITUDE_STORAGE_KEY);
-            // Также убираем ⭐ из меню, если они были
+            try { localStorage.removeItem(APTITUDE_STORAGE_KEY); } catch (e) {}
             try { clearAptitudeMenuRecommendations(); } catch (e) {}
         }
     } catch (e) {
@@ -869,6 +886,7 @@ function applyLevelAvailabilityToMenu() {
 }
 
 const STATS_KEY = 'apzQuestStatsV1';
+const RESET_TOKEN_KEY = 'apzStatsResetTokenV1';
 
 // Локальная статистика хранится в localStorage и должна сохраняться между запусками WebApp.
 // Сброс выполняется только по явному действию пользователя (кнопка "Сбросить статистику").

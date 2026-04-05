@@ -969,7 +969,12 @@ body.admin-body {
     position: relative;
     padding: 10px;
     box-sizing: border-box;
-    touch-action: manipulation;
+    /* Для MAX WebView полностью отдаём свайпы игровому полю,
+       иначе вертикальный жест вниз может закрывать мини-приложение. */
+    touch-action: none;
+    overscroll-behavior: contain;
+    -webkit-user-select: none;
+    user-select: none;
     /* PERF: изоляция области, чтобы перерисовка не затрагивала всю страницу */
     contain: layout paint style;
 }
